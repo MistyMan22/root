@@ -29,16 +29,17 @@ export async function createLinkType(params: {
     })
     .returning();
 
-  return newType;
+  return newType as LinkType;
 }
 
 /**
  * Get link type by ID
  */
 export async function getLinkType(id: string): Promise<LinkType | null> {
-  return await db.query.linkType.findFirst({
+  const result = await db.query.linkType.findFirst({
     where: eq(linkType.id, id),
   });
+  return result as LinkType | null;
 }
 
 /**
@@ -79,7 +80,7 @@ export async function updateLinkType(
     .where(eq(linkType.id, id))
     .returning();
 
-  return updated;
+  return updated as LinkType;
 }
 
 /**
@@ -93,5 +94,6 @@ export async function deleteLinkType(id: string): Promise<void> {
  * List all link types
  */
 export async function listLinkTypes(): Promise<LinkType[]> {
-  return await db.query.linkType.findMany();
+  const results = await db.query.linkType.findMany();
+  return results as LinkType[];
 }

@@ -7,7 +7,7 @@
   },
   "packageManager": "pnpm@10.15.1",
   "scripts": {
-    "build": "tsc -p tsconfig.json --pretty false || true",
+    "build": "turbo run build",
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo run clean",
     "db:push": "turbo -F @acme/db push",

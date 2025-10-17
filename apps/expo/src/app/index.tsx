@@ -33,7 +33,7 @@ function TodoCard(props: {
           </Text>
           <View className="mt-1 flex flex-row items-center gap-2">
             <Text
-              className={`text-xs font-medium uppercase tracking-wide ${
+              className={`text-xs font-medium tracking-wide uppercase ${
                 props.todo.priority === "high"
                   ? "text-red-500"
                   : props.todo.priority === "medium"

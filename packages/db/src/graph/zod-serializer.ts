@@ -74,7 +74,7 @@ export function serializeZodSchema(schema: z.ZodTypeAny): SerializedSchema {
   if (schema instanceof z.ZodEnum) {
     return {
       type: "enum",
-      values: schema.options,
+      values: schema.options as string[],
     };
   }
 
@@ -134,7 +134,7 @@ export function deserializeZodSchema(
       return z.enum(values as [string, ...string[]]);
     }
     case "literal": {
-      const value = serialized.value;
+      const value = serialized.value as string;
       return z.literal(value);
     }
     case "union": {

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Link } from "./types";
+import type { Link, SerializedSchema } from "./types";
 import { db } from "../client";
 import { element, link, linkType } from "./schema";
 import { validateLinkData } from "./validator";
@@ -41,7 +41,7 @@ export async function createLink(params: {
 
   // Validate link data
   const data = params.data || {};
-  const schema = deserializeZodSchema(typeDef.schema);
+  const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
   const validation = validateLinkData(data, schema, "strict");
 
   if (!validation.success) {
@@ -63,7 +63,7 @@ export async function createLink(params: {
     })
     .returning();
 
-  return newLink;
+  return newLink as Link;
 }
 
 /**
@@ -85,12 +85,12 @@ export async function getLink(id: string): Promise<Link | null> {
 
   if (typeDef) {
     // Apply loose validation (defaults, warnings)
-    const schema = deserializeZodSchema(typeDef.schema);
-    const validation = validateLinkData(result.data, schema, "loose");
+    const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
+    const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
     result.data = validation.data;
   }
 
-  return result;
+  return result as Link;
 }
 
 /**
@@ -116,7 +116,7 @@ export async function updateLink(
   }
 
   // Validate new data
-  const schema = deserializeZodSchema(typeDef.schema);
+  const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
   const validation = validateLinkData(data, schema, "strict");
 
   if (!validation.success) {
@@ -133,7 +133,7 @@ export async function updateLink(
     .where(eq(link.id, id))
     .returning();
 
-  return updated;
+  return updated as Link;
 }
 
 /**
@@ -165,13 +165,13 @@ export async function findLinksFrom(
     });
 
     if (typeDef) {
-      const schema = deserializeZodSchema(typeDef.schema);
-      const validation = validateLinkData(result.data, schema, "loose");
+      const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
+      const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
       result.data = validation.data;
     }
   }
 
-  return results;
+  return results as Link[];
 }
 
 /**
@@ -196,11 +196,11 @@ export async function findLinksTo(
     });
 
     if (typeDef) {
-      const schema = deserializeZodSchema(typeDef.schema);
-      const validation = validateLinkData(result.data, schema, "loose");
+      const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
+      const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
       result.data = validation.data;
     }
   }
 
-  return results;
+  return results as Link[];
 }

@@ -22,7 +22,7 @@ export const todoRouter = {
         completionDate:
           todo.data?.completionDate instanceof Date
             ? todo.data.completionDate
-            : new Date(todo.data?.completionDate || new Date()),
+            : new Date(todo.data?.completionDate || new Date().toISOString()),
         createdAt: todo.createdAt,
         updatedAt: todo.updatedAt,
       }));
@@ -48,7 +48,7 @@ export const todoRouter = {
         completionDate:
           todo.data.completionDate instanceof Date
             ? todo.data.completionDate
-            : new Date(todo.data.completionDate || new Date()),
+            : new Date(todo.data.completionDate || new Date().toISOString()),
         createdAt: todo.createdAt,
         updatedAt: todo.updatedAt,
       };
@@ -82,7 +82,7 @@ export const todoRouter = {
         completionDate:
           created.data?.completionDate instanceof Date
             ? created.data.completionDate
-            : new Date(created.data?.completionDate || new Date()),
+            : new Date(created.data?.completionDate || new Date().toISOString()),
         createdAt: created.createdAt,
         updatedAt: created.updatedAt,
       };
@@ -112,7 +112,7 @@ export const todoRouter = {
         completionDate:
           updated.data?.completionDate instanceof Date
             ? updated.data.completionDate
-            : new Date(updated.data?.completionDate || new Date()),
+            : new Date(updated.data?.completionDate || new Date().toISOString()),
         createdAt: updated.createdAt,
         updatedAt: updated.updatedAt,
       };

@@ -10,7 +10,7 @@ export const elementTypes = {
       completionDate: z
         .string()
         .transform((str) => new Date(str))
-        .default(() => new Date().toISOString()),
+        .default(new Date().toISOString()),
     }),
     parentTypes: [],
   },

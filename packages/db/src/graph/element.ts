@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { Element } from "./types";
+import type { Element, SerializedSchema } from "./types";
 import { db } from "../client";
 import { element, elementType } from "./schema";
 import { validateElementData } from "./validator";
@@ -23,7 +23,7 @@ export async function createElement(params: {
   }
 
   // Deserialize and validate schema
-  const schema = deserializeZodSchema(typeDef.schema);
+  const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
   const validation = validateElementData(params.data, schema, "strict");
 
   if (!validation.success) {
@@ -43,7 +43,7 @@ export async function createElement(params: {
     })
     .returning();
 
-  return newElement;
+  return newElement as Element;
 }
 
 /**
@@ -65,12 +65,12 @@ export async function getElement(id: string): Promise<Element | null> {
 
   if (typeDef) {
     // Apply loose validation (defaults, warnings)
-    const schema = deserializeZodSchema(typeDef.schema);
-    const validation = validateElementData(result.data, schema, "loose");
+    const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
+    const validation = validateElementData(result.data as Record<string, unknown>, schema, "loose");
     result.data = validation.data;
   }
 
-  return result;
+  return result as Element;
 }
 
 /**
@@ -99,7 +99,7 @@ export async function updateElement(
   const mergedData = { ...existing.data, ...data };
 
   // Validate merged data
-  const schema = deserializeZodSchema(typeDef.schema);
+  const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
   const validation = validateElementData(mergedData, schema, "strict");
 
   if (!validation.success) {
@@ -116,7 +116,7 @@ export async function updateElement(
     .where(eq(element.id, id))
     .returning();
 
-  return updated;
+  return updated as Element;
 }
 
 /**
@@ -140,13 +140,13 @@ export async function findElementsByType(typeId: string): Promise<Element[]> {
   });
 
   if (typeDef) {
-    const schema = deserializeZodSchema(typeDef.schema);
+    const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
 
     for (const result of results) {
-      const validation = validateElementData(result.data, schema, "loose");
+      const validation = validateElementData(result.data as Record<string, unknown>, schema, "loose");
       result.data = validation.data;
     }
   }
 
-  return results;
+  return results as Element[];
 }

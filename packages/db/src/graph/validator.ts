@@ -25,11 +25,7 @@ export function validateData(
 
     if (!result.success) {
       // Handle Zod validation errors
-      if (
-        result.error &&
-        result.error.errors &&
-        Array.isArray(result.error.errors)
-      ) {
+      if (result.error && 'errors' in result.error && Array.isArray(result.error.errors)) {
         for (const error of result.error.errors) {
           const field = error.path.join(".");
           const message = error.message;
@@ -48,7 +44,7 @@ export function validateData(
       }
     }
 
-    return { success: true, data: result.data, errors };
+    return { success: true, data: result.data as Record<string, unknown>, errors };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown validation error";

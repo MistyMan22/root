@@ -25,16 +25,17 @@ export async function createElementType(params: {
     })
     .returning();
 
-  return newType;
+  return newType as ElementType;
 }
 
 /**
  * Get element type by ID
  */
 export async function getElementType(id: string): Promise<ElementType | null> {
-  return await db.query.elementType.findFirst({
+  const result = await db.query.elementType.findFirst({
     where: eq(elementType.id, id),
   });
+  return result as ElementType | null;
 }
 
 /**
@@ -65,7 +66,7 @@ export async function updateElementType(
     .where(eq(elementType.id, id))
     .returning();
 
-  return updated;
+  return updated as ElementType;
 }
 
 /**
@@ -79,5 +80,6 @@ export async function deleteElementType(id: string): Promise<void> {
  * List all element types
  */
 export async function listElementTypes(): Promise<ElementType[]> {
-  return await db.query.elementType.findMany();
+  const results = await db.query.elementType.findMany();
+  return results as ElementType[];
 }
