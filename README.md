@@ -2,10 +2,7 @@
 
 > [!NOTE]
 >
-> create-t3-turbo now uses better-auth for authentication!
-> Look out for bugs as we're working through the last issues,
-> especially, the oauth proxy might not play very nice with Expo
-> so you might need to disable that in [`@acme/auth`](./packages/auth/src/index.ts)
+> Authentication now uses Clerk across web (Next.js) and mobile (Expo).
 
 ## Installation
 
@@ -51,7 +48,7 @@ packages
   ├─ api
   │   └─ tRPC v11 router definition
   ├─ auth
-  │   └─ Authentication using better-auth.
+  │   └─ Authentication adapters using Clerk (server and React re-exports)
   ├─ db
   │   └─ Typesafe db calls using Drizzle & Supabase
   └─ ui
@@ -90,29 +87,24 @@ cp .env.example .env
 pnpm db:push
 ```
 
-### 2. Generate Better Auth Schema
+### 2. Configure Clerk
 
-This project uses [Better Auth](https://www.better-auth.com) for authentication. The auth schema needs to be generated using the Better Auth CLI before you can use the authentication features.
+Set the following environment variables in your `.env` (copied from `.env.example`):
 
 ```bash
-# Generate the Better Auth schema
-pnpm --filter @acme/auth generate
+# Database
+POSTGRES_URL="postgres://..."
+
+# Clerk
+CLERK_SECRET_KEY="sk_live_or_test_..."
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_live_or_test_..." # Web (Next.js)
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_live_or_test_..." # Mobile (Expo)
 ```
 
-This command runs the Better Auth CLI with the following configuration:
+Notes:
 
-- **Config file**: `packages/auth/script/auth-cli.ts` - A CLI-only configuration file (isolated from src to prevent imports)
-- **Output**: `packages/db/src/auth-schema.ts` - Generated Drizzle schema for authentication tables
-
-The generation process:
-
-1. Reads the Better Auth configuration from `packages/auth/script/auth-cli.ts`
-2. Generates the appropriate database schema based on your auth setup
-3. Outputs a Drizzle-compatible schema file to the `@acme/db` package
-
-> **Note**: The `auth-cli.ts` file is placed in the `script/` directory (instead of `src/`) to prevent accidental imports from other parts of the codebase. This file is exclusively for CLI schema generation and should **not** be used directly in your application. For runtime authentication, use the configuration from `packages/auth/src/index.ts`.
-
-For more information about the Better Auth CLI, see the [official documentation](https://www.better-auth.com/docs/concepts/cli#generate).
+- Next.js reads `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` client-side and `CLERK_SECRET_KEY` server-side (see `apps/nextjs/src/env.ts`).
+- Expo reads `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (see `apps/expo/src/app/_layout.tsx`).
 
 ### 3. Configure Expo `dev`-script
 
@@ -140,19 +132,9 @@ For more information about the Better Auth CLI, see the [official documentation]
 
 3. Run `pnpm dev` at the project root folder.
 
-### 4. Configuring Better-Auth to work with Expo
+### 4. Clerk details
 
-In order to get Better-Auth to work with Expo, you must either:
-
-#### Deploy the Auth Proxy (RECOMMENDED)
-
-Better-auth comes with an [auth proxy plugin](https://www.better-auth.com/docs/plugins/oauth-proxy). By deploying the Next.js app, you can get OAuth working in preview deployments and development for Expo apps.
-
-By using the proxy plugin, the Next.js apps will forward any auth requests to the proxy server, which will handle the OAuth flow and then redirect back to the Next.js app. This makes it easy to get OAuth working since you'll have a stable URL that is publicly accessible and doesn't change for every deployment and doesn't rely on what port the app is running on. So if port 3000 is taken and your Next.js app starts at port 3001 instead, your auth should still work without having to reconfigure the OAuth provider.
-
-#### Add your local IP to your OAuth provider
-
-You can alternatively add your local IP (e.g. `192.168.x.y:$PORT`) to your OAuth provider. This may not be as reliable as your local IP may change when you change networks. Some OAuth providers may also only support a single callback URL for each app making this approach unviable for some providers (e.g. GitHub).
+Web uses `@clerk/nextjs` with middleware configured in `apps/nextjs/src/middleware.ts`. Mobile uses `@clerk/clerk-expo` with `SecureStore` token cache in `apps/expo/src/app/_layout.tsx`.
 
 ### 5a. When it's time to add a new UI component
 
@@ -203,9 +185,9 @@ Let's deploy the Next.js application to [Vercel](https://vercel.com). If you've 
 
 3. Done! Your app should successfully deploy. Assign your domain and use that instead of `localhost` for the `url` in the Expo app so that your Expo app can communicate with your backend when you are not in development.
 
-### Auth Proxy
+### Auth
 
-The auth proxy comes as a better-auth plugin. This is required for the Next.js app to be able to authenticate users in preview deployments. The auth proxy is not used for OAuth request in production deployments. The easiest way to get it running is to deploy the Next.js app to vercel.
+Authentication is powered by Clerk. Server utilities are re-exported from `@acme/auth` and used in the API layer. Route protection for Next.js is handled by `clerkMiddleware`.
 
 ### Expo
 

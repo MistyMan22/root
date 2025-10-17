@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 
 import { cn } from "@acme/ui";
 import { ThemeProvider, ThemeToggle } from "@acme/ui/theme";
@@ -49,22 +50,24 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={cn(
-          "bg-background text-foreground min-h-screen font-sans antialiased",
-          geistSans.variable,
-          geistMono.variable,
-        )}
-      >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TRPCReactProvider>{props.children}</TRPCReactProvider>
-          <div className="absolute right-4 bottom-4">
-            <ThemeToggle />
-          </div>
-          <Toaster />
-        </ThemeProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={cn(
+            "bg-background text-foreground min-h-screen font-sans antialiased",
+            geistSans.variable,
+            geistMono.variable,
+          )}
+        >
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <TRPCReactProvider>{props.children}</TRPCReactProvider>
+            <div className="absolute bottom-4 right-4">
+              <ThemeToggle />
+            </div>
+            <Toaster />
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

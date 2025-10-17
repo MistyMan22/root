@@ -1,58 +1,34 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
-import { Button } from "@acme/ui/button";
-
-import { auth, getSession } from "~/auth/server";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@acme/auth/react";
 
 export async function AuthShowcase() {
-  const session = await getSession();
-
-  if (!session) {
-    return (
-      <form>
-        <Button
-          size="lg"
-          formAction={async () => {
-            "use server";
-            const res = await auth.api.signInSocial({
-              body: {
-                provider: "discord",
-                callbackURL: "/",
-              },
-            });
-            if (!res.url) {
-              throw new Error("No URL returned from signInSocial");
-            }
-            redirect(res.url);
-          }}
-        >
-          Sign in with Discord
-        </Button>
-      </form>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <p className="text-center text-2xl">
-        <span>Logged in as {session.user.name}</span>
-      </p>
+      <SignedOut>
+        <div className="flex gap-4">
+          <SignInButton mode="modal">
+            <button className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600">
+              Sign In
+            </button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <button className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600">
+              Sign Up
+            </button>
+          </SignUpButton>
+        </div>
+      </SignedOut>
 
-      <form>
-        <Button
-          size="lg"
-          formAction={async () => {
-            "use server";
-            await auth.api.signOut({
-              headers: await headers(),
-            });
-            redirect("/");
-          }}
-        >
-          Sign out
-        </Button>
-      </form>
+      <SignedIn>
+        <div className="flex items-center gap-4">
+          <UserButton afterSignOutUrl="/" />
+        </div>
+      </SignedIn>
     </div>
   );
 }

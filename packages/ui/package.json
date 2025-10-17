@@ -5,10 +5,12 @@
   "exports": {
     ".": "./src/index.ts",
     "./button": "./src/button.tsx",
+    "./checkbox": "./src/checkbox.tsx",
     "./dropdown-menu": "./src/dropdown-menu.tsx",
     "./field": "./src/field.tsx",
     "./input": "./src/input.tsx",
     "./label": "./src/label.tsx",
+    "./select": "./src/select.tsx",
     "./separator": "./src/separator.tsx",
     "./theme": "./src/theme.tsx",
     "./toast": "./src/toast.tsx"
