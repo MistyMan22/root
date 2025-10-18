@@ -1,38 +1,41 @@
-import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import { ClerkProvider } from "@clerk/clerk-expo";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { useColorScheme } from "nativewind";
 
 import { queryClient } from "~/utils/api";
 
 import "../styles.css";
 
+import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
+import { ClerkProvider } from "@clerk/clerk-expo";
+import { QueryClientProvider } from "@tanstack/react-query";
+
+WebBrowser.maybeCompleteAuthSession();
+
 const tokenCache = {
   async getToken(key: string) {
     try {
-      return SecureStore.getItemAsync(key);
-    } catch (err) {
+      return await SecureStore.getItemAsync(key);
+    } catch {
       return null;
     }
   },
   async saveToken(key: string, value: string) {
     try {
-      return SecureStore.setItemAsync(key, value);
-    } catch (err) {
-      return;
-    }
+      await SecureStore.setItemAsync(key, value);
+      await SecureStore.setItemAsync("CLERK_TOKEN", value);
+    } catch {}
   },
 };
 
 // This is the main layout of the app
 // It wraps your pages with the providers they need
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   return (
     <ClerkProvider
-      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
       tokenCache={tokenCache}
     >
       <QueryClientProvider client={queryClient}>
@@ -43,7 +46,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerStyle: {
-              backgroundColor: "#c03484",
+              backgroundColor: "#f472b6",
             },
             contentStyle: {
               backgroundColor: colorScheme == "dark" ? "#09090B" : "#FFFFFF",

@@ -29,7 +29,7 @@ export function serializeZodSchema(schema: z.ZodTypeAny): SerializedSchema {
   if (schema instanceof z.ZodArray) {
     return {
       type: "array",
-      element: serializeZodSchema(schema.element),
+      element: serializeZodSchema(schema.element as z.ZodTypeAny),
     };
   }
 
@@ -49,20 +49,20 @@ export function serializeZodSchema(schema: z.ZodTypeAny): SerializedSchema {
 
   if (schema instanceof z.ZodOptional) {
     return {
-      ...serializeZodSchema(schema.unwrap()),
+      ...serializeZodSchema(schema.unwrap() as z.ZodTypeAny),
       optional: true,
     };
   }
 
   if (schema instanceof z.ZodNullable) {
     return {
-      ...serializeZodSchema(schema.unwrap()),
+      ...serializeZodSchema(schema.unwrap() as z.ZodTypeAny),
       nullable: true,
     };
   }
 
   if (schema instanceof z.ZodDefault) {
-    const inner = serializeZodSchema(schema.removeDefault());
+    const inner = serializeZodSchema(schema.removeDefault() as z.ZodTypeAny);
     const defaultValue = schema._def.defaultValue;
     return {
       ...inner,
@@ -88,7 +88,9 @@ export function serializeZodSchema(schema: z.ZodTypeAny): SerializedSchema {
   if (schema instanceof z.ZodUnion) {
     return {
       type: "union",
-      options: schema.options.map((option) => serializeZodSchema(option)),
+      options: schema.options.map((option) =>
+        serializeZodSchema(option as z.ZodTypeAny),
+      ),
     };
   }
 

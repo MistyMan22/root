@@ -9,8 +9,8 @@ export const elementTypes = {
       priority: z.enum(["low", "medium", "high"]).default("medium"),
       completionDate: z
         .string()
-        .transform((str) => new Date(str))
-        .default(new Date().toISOString()),
+        .default(() => new Date().toISOString())
+        .transform((str) => new Date(str)),
     }),
     parentTypes: [],
   },

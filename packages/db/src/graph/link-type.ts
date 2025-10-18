@@ -25,7 +25,7 @@ export async function createLinkType(params: {
       fromType: params.fromType,
       toType: params.toType,
       schema: serializedSchema,
-      parentTypes: params.parentTypes || [],
+      parentTypes: params.parentTypes ?? [],
     })
     .returning();
 

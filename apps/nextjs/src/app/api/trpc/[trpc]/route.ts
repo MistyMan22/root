@@ -1,9 +1,8 @@
 import type { NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
 import { appRouter, createTRPCContext } from "@acme/api";
-
-import { auth } from "~/auth/server";
 
 /**
  * Configure basic CORS headers
@@ -31,7 +30,7 @@ const handler = async (req: NextRequest) => {
     req,
     createContext: () =>
       createTRPCContext({
-        auth: auth,
+        auth,
         headers: req.headers,
       }),
     onError({ error, path }) {

@@ -53,9 +53,12 @@ export function CreateTodoForm() {
   const form = useForm({
     defaultValues: {
       title: "",
-      priority: "medium" as const,
+      priority: "medium",
     },
-    onSubmit: (data) => createTodo.mutate(data.value),
+    onSubmit: (data) =>
+      createTodo.mutate(
+        data.value as { title: string; priority: "medium" | "low" | "high" },
+      ),
   });
 
   return (
@@ -70,7 +73,8 @@ export function CreateTodoForm() {
         <form.Field
           name="title"
           validators={{
-            onChange: ({ value }) => (!value ? "Title is required" : undefined),
+            onChange: ({ value }) =>
+              !value ? { message: "Title is required" } : undefined,
           }}
           children={(field) => {
             const isInvalid =
@@ -104,7 +108,7 @@ export function CreateTodoForm() {
                 </FieldContent>
                 <Select
                   value={field.state.value}
-                  onValueChange={field.handleChange}
+                  onValueChange={(value) => field.handleChange(value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select priority" />
@@ -215,12 +219,12 @@ export function TodoCard(props: {
     <div
       className={cn(
         "bg-muted flex flex-row items-center rounded-lg p-4 transition-all",
-        props.todo.completed && "opacity-60",
+        props.todo.completed === true && "opacity-60",
       )}
     >
       <div className="flex grow items-center space-x-3">
         <Checkbox
-          checked={props.todo.completed}
+          checked={!!props.todo.completed}
           onCheckedChange={handleToggleComplete}
           disabled={updateTodo.isPending}
         />
@@ -228,19 +232,21 @@ export function TodoCard(props: {
           <h2
             className={cn(
               "text-primary text-xl font-semibold",
-              props.todo.completed && "line-through",
+              props.todo.completed === true && "line-through",
             )}
           >
-            {props.todo.title}
+            {typeof props.todo.title === "string"
+              ? props.todo.title
+              : "Untitled"}
           </h2>
           <div className="mt-1 flex items-center gap-2">
             <span
               className={cn(
-                "text-xs font-medium uppercase tracking-wide",
-                getPriorityColor(props.todo.priority),
+                "text-xs font-medium tracking-wide uppercase",
+                getPriorityColor(props.todo.priority as string),
               )}
             >
-              {props.todo.priority}
+              {props.todo.priority as string}
             </span>
             <span className="text-xs text-gray-500">
               {new Date(props.todo.createdAt).toLocaleDateString()}

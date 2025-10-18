@@ -66,7 +66,11 @@ export async function getElement(id: string): Promise<Element | null> {
   if (typeDef) {
     // Apply loose validation (defaults, warnings)
     const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
-    const validation = validateElementData(result.data as Record<string, unknown>, schema, "loose");
+    const validation = validateElementData(
+      result.data as Record<string, unknown>,
+      schema,
+      "loose",
+    );
     result.data = validation.data;
   }
 
@@ -143,7 +147,11 @@ export async function findElementsByType(typeId: string): Promise<Element[]> {
     const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
 
     for (const result of results) {
-      const validation = validateElementData(result.data as Record<string, unknown>, schema, "loose");
+      const validation = validateElementData(
+        result.data as Record<string, unknown>,
+        schema,
+        "loose",
+      );
       result.data = validation.data;
     }
   }

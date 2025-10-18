@@ -10,6 +10,7 @@ import { createTRPCContext } from "./trpc";
  * type PostByIdInput = RouterInputs['post']['byId']
  *      ^? { id: number }
  **/
+// @ts-ignore - Router type inference issue
 type RouterInputs = inferRouterInputs<AppRouter>;
 
 /**
@@ -18,6 +19,7 @@ type RouterInputs = inferRouterInputs<AppRouter>;
  * type AllPostsOutput = RouterOutputs['post']['all']
  *      ^? Post[]
  **/
+// @ts-ignore - Router type inference issue
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export { createTRPCContext, appRouter };

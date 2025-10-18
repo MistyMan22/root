@@ -1,73 +1,55 @@
-import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import React, { useState } from "react";
+import { Button, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, Stack } from "expo-router";
-import { SignIn, useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useOAuth, useUser } from "@clerk/clerk-expo";
 import { LegendList } from "@legendapp/list";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
 import { trpc } from "~/utils/api";
 
-function TodoCard(props: {
-  todo: RouterOutputs["todo"]["all"][number];
+function PostCard(props: {
+  post: RouterOutputs["post"]["all"][number];
   onDelete: () => void;
-  onToggle: () => void;
 }) {
   return (
-    <View className="bg-muted flex flex-row items-center rounded-lg p-4">
-      <View className="flex grow items-center space-x-3">
-        <Pressable
-          onPress={props.onToggle}
-          className="border-primary h-6 w-6 items-center justify-center rounded border-2"
+    <View className="flex flex-row rounded-lg bg-muted p-4">
+      <View className="flex-grow">
+        <Link
+          asChild
+          href={{
+            pathname: "/post/[id]",
+            params: { id: props.post.id },
+          }}
         >
-          {props.todo.completed && (
-            <Text className="text-primary text-lg">✓</Text>
-          )}
-        </Pressable>
-        <View className="flex-1">
-          <Text
-            className={`text-primary text-xl font-semibold ${props.todo.completed ? "line-through opacity-60" : ""}`}
-          >
-            {props.todo.title}
-          </Text>
-          <View className="mt-1 flex flex-row items-center gap-2">
-            <Text
-              className={`text-xs font-medium tracking-wide uppercase ${
-                props.todo.priority === "high"
-                  ? "text-red-500"
-                  : props.todo.priority === "medium"
-                    ? "text-yellow-500"
-                    : "text-green-500"
-              }`}
-            >
-              {props.todo.priority}
+          <Pressable className="">
+            <Text className="text-xl font-semibold text-primary">
+              {props.post.title}
             </Text>
-            <Text className="text-xs text-gray-500">
-              {new Date(props.todo.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
+            <Text className="mt-2 text-foreground">{props.post.content}</Text>
+          </Pressable>
+        </Link>
       </View>
       <Pressable onPress={props.onDelete}>
-        <Text className="text-primary font-bold uppercase">Delete</Text>
+        <Text className="font-bold uppercase text-primary">Delete</Text>
       </Pressable>
     </View>
   );
 }
 
-function CreateTodo() {
+function CreatePost() {
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
-  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  const [content, setContent] = useState("");
 
   const { mutate, error } = useMutation(
-    trpc.todo.create.mutationOptions({
+    trpc.post.create.mutationOptions({
       async onSuccess() {
         setTitle("");
-        setPriority("medium");
-        await queryClient.invalidateQueries(trpc.todo.all.queryFilter());
+        setContent("");
+        await queryClient.invalidateQueries(trpc.post.all.queryFilter());
       },
     }),
   );
@@ -75,56 +57,41 @@ function CreateTodo() {
   return (
     <View className="mt-4 flex gap-2">
       <TextInput
-        className="border-input bg-background text-foreground items-center rounded-md border px-3 text-lg leading-tight"
+        className="items-center rounded-md border border-input bg-background px-3 text-lg leading-[1.25] text-foreground"
         value={title}
         onChangeText={setTitle}
-        placeholder="What needs to be done?"
+        placeholder="Title"
       />
-      {error?.data?.zodError?.fieldErrors?.title && (
-        <Text className="text-destructive mb-2">
+      {error?.data?.zodError?.fieldErrors.title && (
+        <Text className="mb-2 text-destructive">
           {error.data.zodError.fieldErrors.title}
         </Text>
       )}
-      <View className="flex flex-row gap-2">
-        <Pressable
-          className={`flex-1 items-center rounded-sm p-2 ${
-            priority === "low" ? "bg-green-500" : "bg-gray-500"
-          }`}
-          onPress={() => setPriority("low")}
-        >
-          <Text className="text-white">Low</Text>
-        </Pressable>
-        <Pressable
-          className={`flex-1 items-center rounded-sm p-2 ${
-            priority === "medium" ? "bg-yellow-500" : "bg-gray-500"
-          }`}
-          onPress={() => setPriority("medium")}
-        >
-          <Text className="text-white">Medium</Text>
-        </Pressable>
-        <Pressable
-          className={`flex-1 items-center rounded-sm p-2 ${
-            priority === "high" ? "bg-red-500" : "bg-gray-500"
-          }`}
-          onPress={() => setPriority("high")}
-        >
-          <Text className="text-white">High</Text>
-        </Pressable>
-      </View>
+      <TextInput
+        className="items-center rounded-md border border-input bg-background px-3 text-lg leading-[1.25] text-foreground"
+        value={content}
+        onChangeText={setContent}
+        placeholder="Content"
+      />
+      {error?.data?.zodError?.fieldErrors.content && (
+        <Text className="mb-2 text-destructive">
+          {error.data.zodError.fieldErrors.content}
+        </Text>
+      )}
       <Pressable
-        className="bg-primary flex items-center rounded-sm p-2"
+        className="flex items-center rounded bg-primary p-2"
         onPress={() => {
           mutate({
             title,
-            priority,
+            content,
           });
         }}
       >
-        <Text className="text-foreground">Add Todo</Text>
+        <Text className="text-foreground">Create</Text>
       </Pressable>
       {error?.data?.code === "UNAUTHORIZED" && (
-        <Text className="text-destructive mt-2">
-          You need to be logged in to create a todo
+        <Text className="mt-2 text-destructive">
+          You need to be logged in to create a post
         </Text>
       )}
     </View>
@@ -134,26 +101,21 @@ function CreateTodo() {
 function MobileAuth() {
   const { isSignedIn, signOut } = useAuth();
   const { user } = useUser();
-
-  if (!isSignedIn) {
-    return (
-      <View className="flex-1">
-        <SignIn />
-      </View>
-    );
-  }
-
   return (
     <>
-      <Text className="text-foreground pb-2 text-center text-xl font-semibold">
-        Hello, {user?.username || user?.emailAddresses[0]?.emailAddress}
+      <Text className="pb-2 text-center text-xl font-semibold text-zinc-900">
+        {isSignedIn
+          ? `Hello, ${user?.firstName ?? user?.username ?? user?.id}`
+          : "Not logged in"}
       </Text>
-      <Pressable
-        onPress={() => signOut()}
-        className="bg-primary flex items-center rounded-sm p-2"
-      >
-        <Text>Sign Out</Text>
-      </Pressable>
+      <Button
+        onPress={async () => {
+          if (isSignedIn) await signOut();
+          // Implement native sign-in screen or OAuth here using Clerk hooks
+        }}
+        title={isSignedIn ? "Sign Out" : "Sign In"}
+        color={"#5B65E9"}
+      />
     </>
   );
 }
@@ -161,60 +123,74 @@ function MobileAuth() {
 export default function Index() {
   const queryClient = useQueryClient();
 
-  const todoQuery = useQuery(trpc.todo.all.queryOptions());
+  const postQuery = useQuery(trpc.post.all.queryOptions());
 
-  const deleteTodoMutation = useMutation(
-    trpc.todo.delete.mutationOptions({
+  const deletePostMutation = useMutation(
+    trpc.post.delete.mutationOptions({
       onSettled: () =>
-        queryClient.invalidateQueries(trpc.todo.all.queryFilter()),
-    }),
-  );
-
-  const updateTodoMutation = useMutation(
-    trpc.todo.update.mutationOptions({
-      onSettled: () =>
-        queryClient.invalidateQueries(trpc.todo.all.queryFilter()),
+        queryClient.invalidateQueries(trpc.post.all.queryFilter()),
     }),
   );
 
   return (
     <SafeAreaView className="bg-background">
       {/* Changes page title visible on the header */}
-      <Stack.Screen options={{ title: "Todo List" }} />
-      <View className="bg-background h-full w-full p-4">
-        <Text className="text-foreground pb-2 text-center text-5xl font-bold">
-          Todo <Text className="text-primary">List</Text>
+      <Stack.Screen options={{ title: "Home Page" }} />
+      <View className="h-full w-full bg-background p-4">
+        <Text className="pb-2 text-center text-5xl font-bold text-foreground">
+          Create <Text className="text-primary">T3</Text> Turbo
         </Text>
 
         <MobileAuth />
+        <OAuthButtons />
 
         <View className="py-2">
-          <Text className="text-primary font-semibold italic">
-            Tap to toggle, swipe to delete
+          <Text className="font-semibold italic text-primary">
+            Press on a post
           </Text>
         </View>
 
         <LegendList
-          data={todoQuery.data ?? []}
+          data={postQuery.data ?? []}
           estimatedItemSize={20}
-          keyExtractor={(item: RouterOutputs["todo"]["all"][number]) => item.id}
+          keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <View className="h-2" />}
-          renderItem={(p: { item: RouterOutputs["todo"]["all"][number] }) => (
-            <TodoCard
-              todo={p.item}
-              onDelete={() => deleteTodoMutation.mutate(p.item.id)}
-              onToggle={() =>
-                updateTodoMutation.mutate({
-                  id: p.item.id,
-                  completed: !p.item.completed,
-                })
-              }
+          renderItem={(p) => (
+            <PostCard
+              post={p.item}
+              onDelete={() => deletePostMutation.mutate(p.item.id)}
             />
           )}
         />
 
-        <CreateTodo />
+        <CreatePost />
       </View>
     </SafeAreaView>
+  );
+}
+
+function OAuthButtons() {
+  const { isSignedIn, setActive } = useAuth();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_discord" });
+  if (isSignedIn) return null;
+  return (
+    <View className="mt-2">
+      <Button
+        title="Sign in with Discord"
+        color={"#5B65E9"}
+        onPress={async () => {
+          try {
+            const { createdSessionId, setActive: setActiveFromOAuth } =
+              await startOAuthFlow();
+            const setActiveFn = setActiveFromOAuth ?? setActive;
+            if (createdSessionId && setActiveFn) {
+              await setActiveFn({ session: createdSessionId });
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+      />
+    </View>
   );
 }

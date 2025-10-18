@@ -21,7 +21,7 @@ export async function createElementType(params: {
     .values({
       id: params.id,
       schema: serializedSchema,
-      parentTypes: params.parentTypes || [],
+      parentTypes: params.parentTypes ?? [],
     })
     .returning();
 

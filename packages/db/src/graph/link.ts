@@ -40,7 +40,7 @@ export async function createLink(params: {
   }
 
   // Validate link data
-  const data = params.data || {};
+  const data = params.data ?? {};
   const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
   const validation = validateLinkData(data, schema, "strict");
 
@@ -86,7 +86,11 @@ export async function getLink(id: string): Promise<Link | null> {
   if (typeDef) {
     // Apply loose validation (defaults, warnings)
     const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
-    const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
+    const validation = validateLinkData(
+      result.data as Record<string, unknown>,
+      schema,
+      "loose",
+    );
     result.data = validation.data;
   }
 
@@ -166,7 +170,11 @@ export async function findLinksFrom(
 
     if (typeDef) {
       const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
-      const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
+      const validation = validateLinkData(
+        result.data as Record<string, unknown>,
+        schema,
+        "loose",
+      );
       result.data = validation.data;
     }
   }
@@ -197,7 +205,11 @@ export async function findLinksTo(
 
     if (typeDef) {
       const schema = deserializeZodSchema(typeDef.schema as SerializedSchema);
-      const validation = validateLinkData(result.data as Record<string, unknown>, schema, "loose");
+      const validation = validateLinkData(
+        result.data as Record<string, unknown>,
+        schema,
+        "loose",
+      );
       result.data = validation.data;
     }
   }

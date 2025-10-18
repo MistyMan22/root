@@ -1,12 +1,9 @@
 import { Suspense } from "react";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import { HydrateClient, prefetch, trpc } from "~/trpc/server";
 import { AuthShowcase } from "./_components/auth-showcase";
-import {
-  CreateTodoForm,
-  TodoCardSkeleton,
-  TodoList,
-} from "./_components/todos";
+import { TodoCardSkeleton, TodoList } from "./_components/todos";
 
 export default function HomePage() {
   prefetch(trpc.todo.all.queryOptions());
@@ -16,11 +13,17 @@ export default function HomePage() {
       <main className="container h-screen py-16">
         <div className="flex flex-col items-center justify-center gap-4">
           <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Todo <span className="text-primary">List</span>
+            Create <span className="text-primary">T3</span> Turbo
           </h1>
-          <AuthShowcase />
+          <div className="my-4">
+            <SignedOut>
+              <SignInButton mode="modal" />
+            </SignedOut>
+            <SignedIn>
+              <AuthShowcase />
+            </SignedIn>
+          </div>
 
-          <CreateTodoForm />
           <div className="w-full max-w-2xl overflow-y-scroll">
             <Suspense
               fallback={

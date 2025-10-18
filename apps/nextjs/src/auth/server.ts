@@ -1,5 +1,5 @@
 import "server-only";
 
-import { auth } from "@acme/auth";
+import { auth } from "@clerk/nextjs/server";
 
 export { auth };

@@ -12,17 +12,20 @@ export const todoRouter = {
 
     // Transform graph elements to match expected frontend structure
     const transformedTodos = todos
-      .filter((todo) => todo.data && typeof todo.data === "object") // Filter out invalid todos
+      .filter((todo) => typeof todo.data === "object") // Filter out invalid todos
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((todo) => ({
         id: todo.id,
-        title: todo.data?.title || "Untitled",
-        completed: todo.data?.completed || false,
-        priority: todo.data?.priority || "medium",
+        title: todo.data.title ?? "Untitled",
+        completed: todo.data.completed ?? false,
+        priority: todo.data.priority ?? "medium",
         completionDate:
-          todo.data?.completionDate instanceof Date
+          todo.data.completionDate instanceof Date
             ? todo.data.completionDate
-            : new Date(todo.data?.completionDate || new Date().toISOString()),
+            : new Date(
+                (todo.data.completionDate as string) ||
+                  new Date().toISOString(),
+              ),
         createdAt: todo.createdAt,
         updatedAt: todo.updatedAt,
       }));
@@ -38,17 +41,20 @@ export const todoRouter = {
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const todo = await graph.element.get(input.id);
-      if (!todo || !todo.data || typeof todo.data !== "object") return null;
+      if (!todo?.data || typeof todo.data !== "object") return null;
 
       return {
         id: todo.id,
-        title: todo.data.title || "Untitled",
-        completed: todo.data.completed || false,
-        priority: todo.data.priority || "medium",
+        title: todo.data.title ?? "Untitled",
+        completed: todo.data.completed ?? false,
+        priority: todo.data.priority ?? "medium",
         completionDate:
           todo.data.completionDate instanceof Date
             ? todo.data.completionDate
-            : new Date(todo.data.completionDate || new Date().toISOString()),
+            : new Date(
+                (todo.data.completionDate as string) ||
+                  new Date().toISOString(),
+              ),
         createdAt: todo.createdAt,
         updatedAt: todo.updatedAt,
       };
@@ -68,7 +74,7 @@ export const todoRouter = {
         data: {
           title: input.title,
           completed: false,
-          priority: input.priority || "medium",
+          priority: input.priority,
           completionDate: new Date().toISOString(),
         },
       });
@@ -76,13 +82,16 @@ export const todoRouter = {
 
       return {
         id: created.id,
-        title: created.data?.title || "Untitled",
-        completed: created.data?.completed || false,
-        priority: created.data?.priority || "medium",
+        title: created.data.title,
+        completed: created.data.completed ?? false,
+        priority: created.data.priority ?? "medium",
         completionDate:
-          created.data?.completionDate instanceof Date
+          created.data.completionDate instanceof Date
             ? created.data.completionDate
-            : new Date(created.data?.completionDate || new Date().toISOString()),
+            : new Date(
+                (created.data.completionDate as string) ||
+                  new Date().toISOString(),
+              ),
         createdAt: created.createdAt,
         updatedAt: created.updatedAt,
       };
@@ -106,13 +115,16 @@ export const todoRouter = {
 
       return {
         id: updated.id,
-        title: updated.data?.title || "Untitled",
-        completed: updated.data?.completed || false,
-        priority: updated.data?.priority || "medium",
+        title: updated.data.title ?? "Untitled",
+        completed: updated.data.completed ?? false,
+        priority: updated.data.priority ?? "medium",
         completionDate:
-          updated.data?.completionDate instanceof Date
+          updated.data.completionDate instanceof Date
             ? updated.data.completionDate
-            : new Date(updated.data?.completionDate || new Date().toISOString()),
+            : new Date(
+                (updated.data.completionDate as string) ||
+                  new Date().toISOString(),
+              ),
         createdAt: updated.createdAt,
         updatedAt: updated.updatedAt,
       };
