@@ -1,4 +1,8 @@
 // Internal imports for runtime bindings
+
+// Main graph API
+import type { ElementInputDataById, ElementTypeId } from "./type-definitions";
+import type { ElementWithData } from "./types";
 import {
   createElement as createElementFn,
   deleteElement as deleteElementFn,
@@ -90,14 +94,22 @@ export {
 export * from "./types";
 export * from "./type-definitions";
 
-// Main graph API
+type CreateElementFn = <K extends ElementTypeId>(params: {
+  typeId: K;
+  data: ElementInputDataById[K];
+}) => Promise<ElementWithData<K>>;
+
+type FindByTypeFn = <K extends ElementTypeId>(
+  typeId: K,
+) => Promise<ElementWithData<K>[]>;
+
 export const graph = {
   element: {
-    create: createElementFn,
+    create: createElementFn as CreateElementFn,
     get: getElementFn,
     update: updateElementFn,
     delete: deleteElementFn,
-    findByType: findElementsByTypeFn,
+    findByType: findElementsByTypeFn as FindByTypeFn,
   },
   link: {
     create: createLinkFn,

@@ -153,3 +153,15 @@ export const linkTypes = {
     parentTypes: [],
   },
 } as const;
+
+// Type utilities derived from the Zod schemas above
+export type ElementTypeId = keyof typeof elementTypes;
+
+export type ElementDataById = {
+  [K in ElementTypeId]: z.infer<(typeof elementTypes)[K]["schema"]>;
+};
+
+// Input variants support defaults and pre-transform inputs
+export type ElementInputDataById = {
+  [K in ElementTypeId]: z.input<(typeof elementTypes)[K]["schema"]>;
+};

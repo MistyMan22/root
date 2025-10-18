@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 
-import type { Element, SerializedSchema } from "./types";
+import type { ElementInputDataById, ElementTypeId } from "./type-definitions";
+import type {
+  AnyTypedElement,
+  ElementWithData,
+  SerializedSchema,
+} from "./types";
 import { db } from "../client";
 import { element, elementType } from "./schema";
 import { validateElementData } from "./validator";
@@ -9,10 +14,10 @@ import { deserializeZodSchema } from "./zod-serializer";
 /**
  * Create a new element
  */
-export async function createElement(params: {
-  typeId: string;
-  data: Record<string, unknown>;
-}): Promise<Element> {
+export async function createElement<TTypeId extends ElementTypeId>(params: {
+  typeId: TTypeId;
+  data: ElementInputDataById[TTypeId];
+}): Promise<ElementWithData<TTypeId>> {
   // Get element type schema
   const typeDef = await db.query.elementType.findFirst({
     where: eq(elementType.id, params.typeId),
@@ -43,13 +48,13 @@ export async function createElement(params: {
     })
     .returning();
 
-  return newElement as Element;
+  return newElement as ElementWithData<TTypeId>;
 }
 
 /**
  * Get element by ID
  */
-export async function getElement(id: string): Promise<Element | null> {
+export async function getElement(id: string): Promise<AnyTypedElement | null> {
   const result = await db.query.element.findFirst({
     where: eq(element.id, id),
   });
@@ -74,16 +79,16 @@ export async function getElement(id: string): Promise<Element | null> {
     result.data = validation.data;
   }
 
-  return result as Element;
+  return result as AnyTypedElement;
 }
 
 /**
  * Update element
  */
-export async function updateElement(
+export async function updateElement<TTypeId extends ElementTypeId>(
   id: string,
-  data: Record<string, unknown>,
-): Promise<Element> {
+  data: ElementInputDataById[TTypeId],
+): Promise<ElementWithData<TTypeId>> {
   // Get existing element
   const existing = await getElement(id);
   if (!existing) {
@@ -120,7 +125,7 @@ export async function updateElement(
     .where(eq(element.id, id))
     .returning();
 
-  return updated as Element;
+  return updated as ElementWithData<TTypeId>;
 }
 
 /**
@@ -133,7 +138,9 @@ export async function deleteElement(id: string): Promise<void> {
 /**
  * Find elements by type
  */
-export async function findElementsByType(typeId: string): Promise<Element[]> {
+export async function findElementsByType<TTypeId extends ElementTypeId>(
+  typeId: TTypeId,
+): Promise<ElementWithData<TTypeId>[]> {
   const results = await db.query.element.findMany({
     where: eq(element.typeId, typeId),
   });
@@ -156,5 +163,5 @@ export async function findElementsByType(typeId: string): Promise<Element[]> {
     }
   }
 
-  return results as Element[];
+  return results as ElementWithData<TTypeId>[];
 }

@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { ElementDataById, ElementTypeId } from "./type-definitions";
 
 export interface SerializedSchema {
   type: string;
@@ -51,3 +51,17 @@ export interface SchemaChange {
 }
 
 export type ValidationMode = "strict" | "loose";
+
+// Strongly-typed element wrappers keyed by ElementTypeId
+export type ElementWithData<TTypeId extends ElementTypeId> = Omit<
+  Element,
+  "typeId" | "data"
+> & {
+  typeId: TTypeId;
+  data: ElementDataById[TTypeId];
+};
+
+// Discriminated union of all typed elements
+export type AnyTypedElement = {
+  [K in ElementTypeId]: ElementWithData<K>;
+}[ElementTypeId];

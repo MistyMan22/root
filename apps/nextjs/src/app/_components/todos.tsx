@@ -219,12 +219,12 @@ export function TodoCard(props: {
     <div
       className={cn(
         "bg-muted flex flex-row items-center rounded-lg p-4 transition-all",
-        props.todo.completed === true && "opacity-60",
+        props.todo.data.completed === true && "opacity-60",
       )}
     >
       <div className="flex grow items-center space-x-3">
         <Checkbox
-          checked={!!props.todo.completed}
+          checked={!!props.todo.data.completed}
           onCheckedChange={handleToggleComplete}
           disabled={updateTodo.isPending}
         />
@@ -232,24 +232,24 @@ export function TodoCard(props: {
           <h2
             className={cn(
               "text-primary text-xl font-semibold",
-              props.todo.completed === true && "line-through",
+              props.todo.data.completed === true && "line-through",
             )}
           >
-            {typeof props.todo.title === "string"
-              ? props.todo.title
+            {typeof props.todo.data.title === "string"
+              ? props.todo.data.title
               : "Untitled"}
           </h2>
           <div className="mt-1 flex items-center gap-2">
             <span
               className={cn(
                 "text-xs font-medium tracking-wide uppercase",
-                getPriorityColor(props.todo.priority as string),
+                getPriorityColor(props.todo.data.priority as string),
               )}
             >
-              {props.todo.priority as string}
+              {props.todo.data.priority as string}
             </span>
             <span className="text-xs text-gray-500">
-              {new Date(props.todo.createdAt).toLocaleDateString()}
+              {new Date(props.todo.data.completionDate).toLocaleDateString()}
             </span>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import type { ElementTypeId } from "./type-definitions";
 import type { Element, Link } from "./types";
 import { findElementsByType } from "./element";
 import { findLinksFrom, findLinksTo } from "./link";
@@ -5,7 +6,7 @@ import { findLinksFrom, findLinksTo } from "./link";
 /**
  * Find elements by type (alias for findElementsByType)
  */
-export async function findByType(typeId: string): Promise<Element[]> {
+export async function findByType(typeId: ElementTypeId): Promise<Element[]> {
   return findElementsByType(typeId);
 }
 
@@ -78,7 +79,7 @@ export async function getConnectedElements(
 export async function traverse(
   startElementId: string,
   linkTypeId?: string,
-  maxDepth: number = 3,
+  maxDepth = 3,
 ): Promise<{ element: Element; depth: number; path: string[] }[]> {
   const visited = new Set<string>();
   const queue: { elementId: string; depth: number; path: string[] }[] = [
@@ -87,7 +88,9 @@ export async function traverse(
   const results: { element: Element; depth: number; path: string[] }[] = [];
 
   while (queue.length > 0) {
-    const { elementId, depth, path } = queue.shift()!;
+    const shifted = queue.shift();
+    if (!shifted) continue;
+    const { elementId, depth, path } = shifted;
 
     if (visited.has(elementId) || depth > maxDepth) {
       continue;
@@ -126,9 +129,9 @@ export async function traverse(
  * Find elements by type with pagination
  */
 export async function findByTypePaginated(
-  typeId: string,
-  limit: number = 10,
-  offset: number = 0,
+  typeId: ElementTypeId,
+  limit = 10,
+  offset = 0,
 ): Promise<{ elements: Element[]; total: number }> {
   const elements = await findElementsByType(typeId);
   const total = elements.length;

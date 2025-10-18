@@ -4,19 +4,19 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
     "./client": {
-      "types": "./dist/client.d.ts",
+      "types": "./src/client.ts",
       "default": "./src/client.ts"
     },
     "./schema": {
-      "types": "./dist/schema.d.ts",
+      "types": "./src/schema.ts",
       "default": "./src/schema.ts"
     },
     "./graph": {
-      "types": "./dist/graph/index.d.ts",
+      "types": "./src/graph/index.ts",
       "default": "./src/graph/index.ts"
     }
   },
