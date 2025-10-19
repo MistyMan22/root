@@ -7,7 +7,7 @@ import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const todoRouter = {
   all: publicProcedure.query(async () => {
-    const todos = await graph.element.findByType("todo" as const);
+    const todos = await graph.element.findByType("todo");
     console.log("🔍 Raw todos from graph DB:", JSON.stringify(todos, null, 2));
     return todos;
   }),
@@ -15,7 +15,7 @@ export const todoRouter = {
   byId: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
-      const todo = await graph.element.get(input.id);
+      const todo = await graph.element.get<"todo">(input.id);
       if (!todo?.data || typeof todo.data !== "object") return null;
 
       return todo;

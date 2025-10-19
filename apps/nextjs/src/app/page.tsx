@@ -3,7 +3,11 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import { HydrateClient, prefetch, trpc } from "~/trpc/server";
 import { AuthShowcase } from "./_components/auth-showcase";
-import { TodoCardSkeleton, TodoList } from "./_components/todos";
+import {
+  CreateTodoForm,
+  TodoCardSkeleton,
+  TodoList,
+} from "./_components/todos";
 
 export default function HomePage() {
   prefetch(trpc.todo.all.queryOptions());
@@ -23,7 +27,7 @@ export default function HomePage() {
               <AuthShowcase />
             </SignedIn>
           </div>
-
+          <CreateTodoForm />
           <div className="w-full max-w-2xl overflow-y-scroll">
             <Suspense
               fallback={

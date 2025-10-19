@@ -17,6 +17,10 @@ interface SyncResult {
   errors: string[];
 }
 
+function toMutableStringArray(arr: readonly string[] | undefined): string[] {
+  return arr ? [...arr] : [];
+}
+
 async function syncElementTypes(): Promise<SyncResult> {
   const result: SyncResult = {
     added: [],
@@ -39,10 +43,14 @@ async function syncElementTypes(): Promise<SyncResult> {
 
       if (!existing) {
         // New type - add it
+        const elementParentTypes = toMutableStringArray(
+          (typeDef as { parentTypes?: readonly string[] }).parentTypes,
+        );
+
         await db.insert(elementType).values({
           id: typeId,
           schema: serializedSchema,
-          parentTypes: (typeDef.parentTypes || []) as string[],
+          parentTypes: elementParentTypes,
         });
         result.added.push(typeId);
         console.log(`  ✅ Added: ${typeId}`);
@@ -73,11 +81,15 @@ async function syncElementTypes(): Promise<SyncResult> {
           }
 
           // Update the type
+          const updatedElementParentTypes = toMutableStringArray(
+            (typeDef as { parentTypes?: readonly string[] }).parentTypes,
+          );
+
           await db
             .update(elementType)
             .set({
               schema: serializedSchema,
-              parentTypes: (typeDef.parentTypes || []) as string[],
+              parentTypes: updatedElementParentTypes,
               updatedAt: new Date(),
             })
             .where(eq(elementType.id, typeId));
@@ -128,12 +140,16 @@ async function syncLinkTypes(): Promise<SyncResult> {
 
       if (!existing) {
         // New type - add it
+        const linkParentTypes = toMutableStringArray(
+          (typeDef as { parentTypes?: readonly string[] }).parentTypes,
+        );
+
         await db.insert(linkType).values({
           id: typeId,
           fromType: typeDef.fromType,
           toType: typeDef.toType,
           schema: serializedSchema,
-          parentTypes: (typeDef.parentTypes || []) as string[],
+          parentTypes: linkParentTypes,
         });
         result.added.push(typeId);
         console.log(`  ✅ Added: ${typeId}`);
@@ -164,13 +180,17 @@ async function syncLinkTypes(): Promise<SyncResult> {
           }
 
           // Update the type
+          const updatedLinkParentTypes = toMutableStringArray(
+            (typeDef as { parentTypes?: readonly string[] }).parentTypes,
+          );
+
           await db
             .update(linkType)
             .set({
               fromType: typeDef.fromType,
               toType: typeDef.toType,
               schema: serializedSchema,
-              parentTypes: (typeDef.parentTypes || []) as string[],
+              parentTypes: updatedLinkParentTypes,
               updatedAt: new Date(),
             })
             .where(eq(linkType.id, typeId));

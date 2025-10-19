@@ -24,13 +24,15 @@ export const OPTIONS = () => {
 };
 
 const handler = async (req: NextRequest) => {
+  const authData = await auth();
+  const userId = authData.userId;
   const response = await fetchRequestHandler({
     endpoint: "/api/trpc",
     router: appRouter,
     req,
     createContext: () =>
       createTRPCContext({
-        auth,
+        auth: { userId },
         headers: req.headers,
       }),
     onError({ error, path }) {

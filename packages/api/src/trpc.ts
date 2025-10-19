@@ -8,7 +8,7 @@
  */
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { z, ZodError } from "zod/v4";
+import { z, ZodError } from "zod";
 
 import { db } from "@acme/db/client";
 
@@ -25,11 +25,11 @@ import { db } from "@acme/db/client";
  * @see https://trpc.io/docs/server/context
  */
 
-export type AuthContext = {
+export interface AuthContext {
   userId: string | null;
-};
+}
 
-export const createTRPCContext = async (opts: {
+export const createTRPCContext = (opts: {
   headers: Headers;
   auth: AuthContext;
 }) => {

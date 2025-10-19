@@ -94,22 +94,27 @@ export {
 export * from "./types";
 export * from "./type-definitions";
 
-type CreateElementFn = <K extends ElementTypeId>(params: {
+// Explicit, exported generic function types so declaration emit preserves generics
+export type CreateElementFn = <K extends ElementTypeId>(params: {
   typeId: K;
   data: ElementInputDataById[K];
 }) => Promise<ElementWithData<K>>;
 
-type FindByTypeFn = <K extends ElementTypeId>(
+export type FindByTypeFn = <K extends ElementTypeId>(
   typeId: K,
 ) => Promise<ElementWithData<K>[]>;
 
+// Typed wrapper bindings (ensures .d.ts uses the generic signatures above)
+export const createElementTyped: CreateElementFn = createElementFn;
+export const findByTypeTyped: FindByTypeFn = findElementsByTypeFn;
+
 export const graph = {
   element: {
-    create: createElementFn as CreateElementFn,
+    create: createElementTyped,
     get: getElementFn,
     update: updateElementFn,
     delete: deleteElementFn,
-    findByType: findElementsByTypeFn as FindByTypeFn,
+    findByType: findByTypeTyped,
   },
   link: {
     create: createLinkFn,

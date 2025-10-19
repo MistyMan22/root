@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
 import {
   useMutation,
   useQueryClient,
@@ -11,13 +11,7 @@ import type { RouterOutputs } from "@acme/api";
 import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
 import { Checkbox } from "@acme/ui/checkbox";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@acme/ui/field";
+// Simplified form – not using Field primitives for now
 import { Input } from "@acme/ui/input";
 import {
   Select,
@@ -34,10 +28,15 @@ export function CreateTodoForm() {
   const trpc = useTRPC();
 
   const queryClient = useQueryClient();
+  type Priority = "low" | "medium" | "high";
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState<Priority>("medium");
+
   const createTodo = useMutation(
     trpc.todo.create.mutationOptions({
       onSuccess: async () => {
-        form.reset();
+        setTitle("");
+        setPriority("medium");
         await queryClient.invalidateQueries(trpc.todo.pathFilter());
       },
       onError: (err) => {
@@ -50,80 +49,45 @@ export function CreateTodoForm() {
     }),
   );
 
-  const form = useForm({
-    defaultValues: {
-      title: "",
-      priority: "medium",
-    },
-    onSubmit: (data) =>
-      createTodo.mutate(
-        data.value as { title: string; priority: "medium" | "low" | "high" },
-      ),
-  });
-
   return (
     <form
-      className="w-full max-w-2xl"
+      className="w-full max-w-2xl space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
-        void form.handleSubmit();
+        createTodo.mutate({ title, priority });
       }}
     >
-      <FieldGroup>
-        <form.Field
+      <div className="space-y-1">
+        <label htmlFor="todo-title" className="block text-sm font-medium">
+          Todo Title
+        </label>
+        <Input
+          id="todo-title"
           name="title"
-          validators={{
-            onChange: ({ value }) =>
-              !value ? { message: "Title is required" } : undefined,
-          }}
-          children={(field) => {
-            const isInvalid =
-              field.state.meta.isTouched && !field.state.meta.isValid;
-            return (
-              <Field data-invalid={isInvalid}>
-                <FieldContent>
-                  <FieldLabel htmlFor={field.name}>Todo Title</FieldLabel>
-                </FieldContent>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  aria-invalid={isInvalid}
-                  placeholder="What needs to be done?"
-                />
-                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            );
-          }}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs to be done?"
+          required
         />
-        <form.Field
-          name="priority"
-          children={(field) => {
-            return (
-              <Field>
-                <FieldContent>
-                  <FieldLabel htmlFor={field.name}>Priority</FieldLabel>
-                </FieldContent>
-                <Select
-                  value={field.state.value}
-                  onValueChange={(value) => field.handleChange(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            );
-          }}
-        />
-      </FieldGroup>
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="todo-priority" className="block text-sm font-medium">
+          Priority
+        </label>
+        <Select
+          value={priority}
+          onValueChange={(v) => setPriority(v as Priority)}
+        >
+          <SelectTrigger id="todo-priority">
+            <SelectValue placeholder="Select priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <Button type="submit" disabled={createTodo.isPending}>
         {createTodo.isPending ? "Adding..." : "Add Todo"}
       </Button>
@@ -159,9 +123,9 @@ export function TodoList() {
   );
 }
 
-export function TodoCard(props: {
-  todo: RouterOutputs["todo"]["all"][number];
-}) {
+type Todo = RouterOutputs["todo"]["all"][number];
+
+export function TodoCard(props: { todo: Todo }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -198,7 +162,7 @@ export function TodoCard(props: {
   const handleToggleComplete = () => {
     updateTodo.mutate({
       id: props.todo.id,
-      completed: !props.todo.completed,
+      completed: !props.todo.data.completed,
     });
   };
 
