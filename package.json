@@ -20,7 +20,7 @@
     "lint": "turbo run lint --continue -- --cache --cache-location .cache/.eslintcache",
     "lint:fix": "turbo run lint --continue -- --fix --cache --cache-location .cache/.eslintcache",
     "lint:ws": "pnpm dlx sherif@latest",
-    "postinstall": "pnpm lint:ws",
+    "postinstall": "node -e \"process.exit(process.env.CI?0:1)\" || pnpm lint:ws",
     "typecheck": "turbo run typecheck",
     "ui-add": "turbo run ui-add",
     "android": "expo run:android",
@@ -34,10 +34,5 @@
     "turbo": "^2.5.8",
     "typescript": "catalog:"
   },
-  "prettier": "@acme/prettier-config",
-  "dependencies": {
-    "@clerk/backend": "^2.18.2",
-    "@clerk/nextjs": "^6.33.6",
-    "zod": "catalog:"
-  }
+  "prettier": "@acme/prettier-config"
 }
