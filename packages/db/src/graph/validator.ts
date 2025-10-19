@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type { SchemaChange, ValidationMode } from "./types";
-import { deserializeZodSchema } from "./zod-serializer";
 
 /**
  * Validate data against a schema with different modes
@@ -37,7 +36,7 @@ export function validateData(
         }
       } else {
         // Fallback for other error types
-        errors.push(result.error?.message || "Validation failed");
+        errors.push(result.error.message || "Validation failed");
       }
 
       if (mode === "strict") {

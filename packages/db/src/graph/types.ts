@@ -2,6 +2,9 @@ import type { ElementDataById, ElementTypeId } from "./type-definitions";
 
 export interface SerializedSchema {
   type: string;
+  optional?: boolean;
+  nullable?: boolean;
+  default?: unknown;
   [key: string]: unknown;
 }
 

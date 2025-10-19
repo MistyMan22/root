@@ -6,11 +6,18 @@ export const elementTypes = {
     schema: z.object({
       title: z.string().max(256),
       completed: z.boolean().default(false),
-      priority: z.enum(["low", "medium", "high"]).default("medium"),
-      completionDate: z
-        .string()
-        .default(() => new Date().toISOString())
-        .transform((str) => new Date(str)),
+      sessions: z
+        .array(
+          z.object({
+            startTimeDate: z.string().default(() => new Date().toISOString()),
+            duration: z.number().default(0),
+            status: z
+              .enum(["completed", "incomplete", "skipped"])
+              .default("incomplete"),
+            notes: z.string().default(""),
+          }),
+        )
+        .optional(),
     }),
     parentTypes: [],
   },

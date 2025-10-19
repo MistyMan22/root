@@ -1,11 +1,17 @@
 import { Suspense } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 
 import { HydrateClient, prefetch, trpc } from "~/trpc/server";
 import { AddTodoButton, TodoCardSkeleton, TodoList } from "./_components/todos";
 
-export default function HomePage() {
+export default async function HomePage() {
   prefetch(trpc.todo.all.queryOptions());
+  const user = await currentUser();
+  const email =
+    user?.primaryEmailAddress?.emailAddress ??
+    user?.emailAddresses?.[0]?.emailAddress ??
+    null;
 
   return (
     <HydrateClient>
@@ -22,25 +28,33 @@ export default function HomePage() {
           </div>
         </header>
 
-        <section className="mt-6">
-          <AddTodoButton />
-        </section>
+        {email === "wrwwhite@gmail.com" ? (
+          <>
+            <section className="mt-6">
+              <AddTodoButton />
+            </section>
 
-        <section className="mt-2">
-          <div className="w-full">
-            <Suspense
-              fallback={
-                <div className="flex w-full flex-col">
-                  <TodoCardSkeleton />
-                  <TodoCardSkeleton />
-                  <TodoCardSkeleton />
-                </div>
-              }
-            >
-              <TodoList />
-            </Suspense>
-          </div>
-        </section>
+            <section className="mt-2">
+              <div className="w-full">
+                <Suspense
+                  fallback={
+                    <div className="flex w-full flex-col">
+                      <TodoCardSkeleton />
+                      <TodoCardSkeleton />
+                      <TodoCardSkeleton />
+                    </div>
+                  }
+                >
+                  <TodoList />
+                </Suspense>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="text-muted-foreground mt-6 text-sm">
+            Nothing to see here.
+          </section>
+        )}
       </main>
     </HydrateClient>
   );

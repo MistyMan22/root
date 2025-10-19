@@ -27,6 +27,7 @@ import { db } from "@acme/db/client";
 
 export interface AuthContext {
   userId: string | null;
+  email?: string | null;
 }
 
 export const createTRPCContext = (opts: {
@@ -35,6 +36,7 @@ export const createTRPCContext = (opts: {
 }) => {
   return {
     authUserId: opts.auth.userId,
+    authEmail: opts.auth.email ?? null,
     db,
   };
 };
@@ -120,6 +122,7 @@ export const protectedProcedure = t.procedure
     return next({
       ctx: {
         authUserId: ctx.authUserId,
+        authEmail: ctx.authEmail,
       },
     });
   });

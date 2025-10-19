@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   useMutation,
   useQueryClient,
@@ -13,22 +13,14 @@ import { Button } from "@acme/ui/button";
 import { Checkbox } from "@acme/ui/checkbox";
 // Simplified form – not using Field primitives for now
 import { Input } from "@acme/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@acme/ui/select";
 import { toast } from "@acme/ui/toast";
 
 import { useTRPC } from "~/trpc/react";
-
-type Priority = "low" | "medium" | "high";
+import { BaseModal } from "./base-modal";
 
 function TodoForm(props: {
-  initial?: { title: string; priority: Priority };
-  onSubmit: (values: { title: string; priority: Priority }) => void;
+  initial?: { title: string };
+  onSubmit: (values: { title: string }) => void;
   submitLabel?: string;
   pending?: boolean;
 }) {
@@ -39,14 +31,13 @@ function TodoForm(props: {
     pending,
   } = props;
   const [title, setTitle] = useState(initial.title);
-  const [priority, setPriority] = useState<Priority>(initial.priority);
 
   return (
     <form
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({ title, priority });
+        onSubmit({ title });
       }}
     >
       <div className="space-y-1">
@@ -61,24 +52,6 @@ function TodoForm(props: {
           placeholder="What needs to be done?"
           required
         />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="todo-priority" className="block text-xs font-medium">
-          Priority
-        </label>
-        <Select
-          value={priority}
-          onValueChange={(v) => setPriority(v as Priority)}
-        >
-          <SelectTrigger id="todo-priority">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving..." : submitLabel}
@@ -118,6 +91,7 @@ export function CreateTodoForm() {
 
 export function AddTodoButton() {
   const [open, setOpen] = useState(false);
+  const initialFocusRef = useRef<HTMLButtonElement | null>(null);
   return (
     <div className="flex items-center justify-between">
       <Button
@@ -128,23 +102,14 @@ export function AddTodoButton() {
       >
         Add Task
       </Button>
-      {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-md bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-tight">Add Task</h2>
-              <button
-                className="text-xs underline"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-              >
-                Close
-              </button>
-            </div>
-            <CreateTodoForm />
-          </div>
-        </div>
-      )}
+      <BaseModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add Task"
+        initialFocusRef={initialFocusRef as React.RefObject<HTMLElement>}
+      >
+        <CreateTodoForm />
+      </BaseModal>
     </div>
   );
 }
@@ -158,7 +123,7 @@ export function TodoList() {
   }
 
   return (
-    <div className="flex w-full flex-col divide-y">
+    <div className="flex w-full flex-col">
       {todos.map((todo) => {
         return <TodoCard key={todo.id} todo={todo} />;
       })}
@@ -169,9 +134,11 @@ export function TodoList() {
 type Todo = RouterOutputs["todo"]["all"][number];
 
 export function TodoCard(props: { todo: Todo }) {
+  console.log("🔍 Todo card props:", props);
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const initialFocusRef = useRef<HTMLButtonElement | null>(null);
 
   const updateTodo = useMutation(
     trpc.todo.update.mutationOptions({
@@ -213,7 +180,7 @@ export function TodoCard(props: { todo: Todo }) {
   return (
     <div
       className={cn(
-        "flex flex-row items-center py-3",
+        "group flex flex-row items-center py-1",
         props.todo.data.completed === true && "opacity-60",
       )}
     >
@@ -234,12 +201,9 @@ export function TodoCard(props: { todo: Todo }) {
               ? props.todo.data.title
               : "Untitled"}
           </h2>
-          <div className="text-muted-foreground mt-0.5 text-xs">
-            {props.todo.data.priority as string}
-          </div>
         </div>
       </div>
-      <div className="ml-4 flex items-center gap-3">
+      <div className="ml-4 flex items-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
         <button
           className="text-xs underline"
           onClick={() => setIsEditing(true)}
@@ -254,38 +218,29 @@ export function TodoCard(props: { todo: Todo }) {
           Delete
         </button>
       </div>
-      {isEditing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-md bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-tight">
-                Edit Task
-              </h2>
-              <button
-                className="text-xs underline"
-                onClick={() => setIsEditing(false)}
-                aria-label="Close"
-              >
-                Close
-              </button>
-            </div>
-            <TodoForm
-              initial={{
-                title: String(props.todo.data.title ?? ""),
-                priority: (props.todo.data.priority as Priority) ?? "medium",
-              }}
-              submitLabel="Update"
-              pending={updateTodo.isPending}
-              onSubmit={(values) =>
-                updateTodo.mutate(
-                  { id: props.todo.id, ...values },
-                  { onSuccess: () => setIsEditing(false) },
-                )
-              }
-            />
-          </div>
-        </div>
-      )}
+      <BaseModal
+        open={isEditing}
+        onClose={() => setIsEditing(false)}
+        title="Edit Task"
+        initialFocusRef={initialFocusRef as React.RefObject<HTMLElement>}
+      >
+        <TodoForm
+          initial={{
+            title:
+              typeof props.todo.data.title === "string"
+                ? props.todo.data.title
+                : "",
+          }}
+          submitLabel="Update"
+          pending={updateTodo.isPending}
+          onSubmit={(values) =>
+            updateTodo.mutate(
+              { id: props.todo.id, ...values },
+              { onSuccess: () => setIsEditing(false) },
+            )
+          }
+        />
+      </BaseModal>
     </div>
   );
 }
