@@ -1,37 +1,36 @@
 import { Suspense } from "react";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 import { HydrateClient, prefetch, trpc } from "~/trpc/server";
-import { AuthShowcase } from "./_components/auth-showcase";
-import {
-  CreateTodoForm,
-  TodoCardSkeleton,
-  TodoList,
-} from "./_components/todos";
+import { AddTodoButton, TodoCardSkeleton, TodoList } from "./_components/todos";
 
 export default function HomePage() {
   prefetch(trpc.todo.all.queryOptions());
 
   return (
     <HydrateClient>
-      <main className="container h-screen py-16">
-        <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-primary">T3</span> Turbo
-          </h1>
-          <div className="my-4">
+      <main className="container max-w-3xl py-8">
+        <header className="flex items-center justify-between border-b pb-4">
+          <h1 className="text-xl font-semibold tracking-tight">Root</h1>
+          <div className="flex items-center gap-3">
             <SignedOut>
               <SignInButton mode="modal" />
             </SignedOut>
             <SignedIn>
-              <AuthShowcase />
+              <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>
-          <CreateTodoForm />
-          <div className="w-full max-w-2xl overflow-y-scroll">
+        </header>
+
+        <section className="mt-6">
+          <AddTodoButton />
+        </section>
+
+        <section className="mt-2">
+          <div className="w-full">
             <Suspense
               fallback={
-                <div className="flex w-full flex-col gap-4">
+                <div className="flex w-full flex-col">
                   <TodoCardSkeleton />
                   <TodoCardSkeleton />
                   <TodoCardSkeleton />
@@ -41,7 +40,7 @@ export default function HomePage() {
               <TodoList />
             </Suspense>
           </div>
-        </div>
+        </section>
       </main>
     </HydrateClient>
   );

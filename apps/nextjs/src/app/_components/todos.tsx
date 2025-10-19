@@ -24,19 +24,77 @@ import { toast } from "@acme/ui/toast";
 
 import { useTRPC } from "~/trpc/react";
 
+type Priority = "low" | "medium" | "high";
+
+function TodoForm(props: {
+  initial?: { title: string; priority: Priority };
+  onSubmit: (values: { title: string; priority: Priority }) => void;
+  submitLabel?: string;
+  pending?: boolean;
+}) {
+  const {
+    initial = { title: "", priority: "medium" },
+    onSubmit,
+    submitLabel = "Save",
+    pending,
+  } = props;
+  const [title, setTitle] = useState(initial.title);
+  const [priority, setPriority] = useState<Priority>(initial.priority);
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit({ title, priority });
+      }}
+    >
+      <div className="space-y-1">
+        <label htmlFor="todo-title" className="block text-xs font-medium">
+          Title
+        </label>
+        <Input
+          id="todo-title"
+          name="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs to be done?"
+          required
+        />
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="todo-priority" className="block text-xs font-medium">
+          Priority
+        </label>
+        <Select
+          value={priority}
+          onValueChange={(v) => setPriority(v as Priority)}
+        >
+          <SelectTrigger id="todo-priority">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving..." : submitLabel}
+      </Button>
+    </form>
+  );
+}
+
 export function CreateTodoForm() {
   const trpc = useTRPC();
 
   const queryClient = useQueryClient();
-  type Priority = "low" | "medium" | "high";
-  const [title, setTitle] = useState("");
-  const [priority, setPriority] = useState<Priority>("medium");
 
   const createTodo = useMutation(
     trpc.todo.create.mutationOptions({
       onSuccess: async () => {
-        setTitle("");
-        setPriority("medium");
         await queryClient.invalidateQueries(trpc.todo.pathFilter());
       },
       onError: (err) => {
@@ -50,48 +108,44 @@ export function CreateTodoForm() {
   );
 
   return (
-    <form
-      className="w-full max-w-2xl space-y-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        createTodo.mutate({ title, priority });
-      }}
-    >
-      <div className="space-y-1">
-        <label htmlFor="todo-title" className="block text-sm font-medium">
-          Todo Title
-        </label>
-        <Input
-          id="todo-title"
-          name="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="What needs to be done?"
-          required
-        />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="todo-priority" className="block text-sm font-medium">
-          Priority
-        </label>
-        <Select
-          value={priority}
-          onValueChange={(v) => setPriority(v as Priority)}
-        >
-          <SelectTrigger id="todo-priority">
-            <SelectValue placeholder="Select priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button type="submit" disabled={createTodo.isPending}>
-        {createTodo.isPending ? "Adding..." : "Add Todo"}
+    <TodoForm
+      onSubmit={(values) => createTodo.mutate(values)}
+      submitLabel="Add Task"
+      pending={createTodo.isPending}
+    />
+  );
+}
+
+export function AddTodoButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center justify-between">
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-black text-black"
+        onClick={() => setOpen(true)}
+      >
+        Add Task
       </Button>
-    </form>
+      {open && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-tight">Add Task</h2>
+              <button
+                className="text-xs underline"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                Close
+              </button>
+            </div>
+            <CreateTodoForm />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -100,22 +154,11 @@ export function TodoList() {
   const { data: todos } = useSuspenseQuery(trpc.todo.all.queryOptions());
 
   if (todos.length === 0) {
-    return (
-      <div className="relative flex w-full flex-col gap-4">
-        <TodoCardSkeleton pulse={false} />
-        <TodoCardSkeleton pulse={false} />
-        <TodoCardSkeleton pulse={false} />
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10">
-          <p className="text-2xl font-bold text-white">No todos yet</p>
-          <p className="text-sm text-white/80">Add your first todo above!</p>
-        </div>
-      </div>
-    );
+    return <div className="text-muted-foreground text-sm">No tasks yet.</div>;
   }
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col divide-y">
       {todos.map((todo) => {
         return <TodoCard key={todo.id} todo={todo} />;
       })}
@@ -128,6 +171,7 @@ type Todo = RouterOutputs["todo"]["all"][number];
 export function TodoCard(props: { todo: Todo }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
 
   const updateTodo = useMutation(
     trpc.todo.update.mutationOptions({
@@ -166,27 +210,14 @@ export function TodoCard(props: { todo: Todo }) {
     });
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "text-red-500";
-      case "medium":
-        return "text-yellow-500";
-      case "low":
-        return "text-green-500";
-      default:
-        return "text-gray-500";
-    }
-  };
-
   return (
     <div
       className={cn(
-        "bg-muted flex flex-row items-center rounded-lg p-4 transition-all",
+        "flex flex-row items-center py-3",
         props.todo.data.completed === true && "opacity-60",
       )}
     >
-      <div className="flex grow items-center space-x-3">
+      <div className="flex grow items-center gap-3">
         <Checkbox
           checked={!!props.todo.data.completed}
           onCheckedChange={handleToggleComplete}
@@ -195,7 +226,7 @@ export function TodoCard(props: { todo: Todo }) {
         <div className="flex-1">
           <h2
             className={cn(
-              "text-primary text-xl font-semibold",
+              "text-base font-medium",
               props.todo.data.completed === true && "line-through",
             )}
           >
@@ -203,32 +234,58 @@ export function TodoCard(props: { todo: Todo }) {
               ? props.todo.data.title
               : "Untitled"}
           </h2>
-          <div className="mt-1 flex items-center gap-2">
-            <span
-              className={cn(
-                "text-xs font-medium tracking-wide uppercase",
-                getPriorityColor(props.todo.data.priority as string),
-              )}
-            >
-              {props.todo.data.priority as string}
-            </span>
-            <span className="text-xs text-gray-500">
-              {new Date(props.todo.data.completionDate).toLocaleDateString()}
-            </span>
+          <div className="text-muted-foreground mt-0.5 text-xs">
+            {props.todo.data.priority as string}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-primary cursor-pointer text-sm font-bold uppercase hover:bg-transparent hover:text-white"
+      <div className="ml-4 flex items-center gap-3">
+        <button
+          className="text-xs underline"
+          onClick={() => setIsEditing(true)}
+        >
+          Edit
+        </button>
+        <button
+          className="text-xs text-red-600 underline"
           onClick={() => deleteTodo.mutate(props.todo.id)}
           disabled={deleteTodo.isPending}
         >
-          {deleteTodo.isPending ? "..." : "Delete"}
-        </Button>
+          Delete
+        </button>
       </div>
+      {isEditing && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-tight">
+                Edit Task
+              </h2>
+              <button
+                className="text-xs underline"
+                onClick={() => setIsEditing(false)}
+                aria-label="Close"
+              >
+                Close
+              </button>
+            </div>
+            <TodoForm
+              initial={{
+                title: String(props.todo.data.title ?? ""),
+                priority: (props.todo.data.priority as Priority) ?? "medium",
+              }}
+              submitLabel="Update"
+              pending={updateTodo.isPending}
+              onSubmit={(values) =>
+                updateTodo.mutate(
+                  { id: props.todo.id, ...values },
+                  { onSuccess: () => setIsEditing(false) },
+                )
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -236,8 +293,8 @@ export function TodoCard(props: { todo: Todo }) {
 export function TodoCardSkeleton(props: { pulse?: boolean }) {
   const { pulse = true } = props;
   return (
-    <div className="bg-muted flex flex-row items-center rounded-lg p-4">
-      <div className="flex grow items-center space-x-3">
+    <div className="flex flex-row items-center py-3">
+      <div className="flex grow items-center gap-3">
         <div
           className={cn(
             "h-4 w-4 rounded border-2 bg-gray-300",
@@ -247,7 +304,7 @@ export function TodoCardSkeleton(props: { pulse?: boolean }) {
         <div className="flex-1">
           <h2
             className={cn(
-              "bg-primary w-1/4 rounded-sm text-xl font-semibold",
+              "w-1/4 rounded-sm bg-black/70 text-base",
               pulse && "animate-pulse",
             )}
           >
@@ -255,7 +312,7 @@ export function TodoCardSkeleton(props: { pulse?: boolean }) {
           </h2>
           <div
             className={cn(
-              "mt-1 w-1/6 rounded-sm bg-current text-xs",
+              "mt-0.5 w-1/6 rounded-sm bg-black/30 text-xs",
               pulse && "animate-pulse",
             )}
           >

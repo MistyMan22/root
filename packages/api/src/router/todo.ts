@@ -48,14 +48,19 @@ export const todoRouter = {
     .input(
       z.object({
         id: z.string(),
-        title: z.string().max(256).optional().default("element"),
+        title: z.string().max(256).optional(),
         completed: z.boolean().optional(),
         priority: z.enum(["low", "medium", "high"]).optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { id, ...updateData } = input;
+      const { id, ...updateDataRaw } = input;
       console.log("📝 Updating todo with input:", input);
+
+      // Remove undefined fields so we only update what was sent
+      const updateData = Object.fromEntries(
+        Object.entries(updateDataRaw).filter(([, v]) => v !== undefined),
+      );
 
       const updated = await graph.element.update<"todo">(id, updateData);
       console.log("✅ Updated todo:", JSON.stringify(updated, null, 2));
