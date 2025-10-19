@@ -5,15 +5,20 @@ export const elementTypes = {
     id: "todo",
     schema: z.object({
       title: z.string().max(256),
+      description: z.string().optional(),
       completed: z.boolean().default(false),
       sessions: z
         .array(
           z.object({
-            startTimeDate: z.string().default(() => new Date().toISOString()),
-            duration: z.number().default(0),
+            startTimeDate: z
+              .string()
+              .optional()
+              .default(() => new Date().toISOString()),
+            time: z.string().nullable().optional(),
+            duration: z.number().nullable().optional(),
             status: z
-              .enum(["completed", "incomplete", "skipped"])
-              .default("incomplete"),
+              .enum(["completed", "planned", "skipped"])
+              .default("planned"),
             notes: z.string().default(""),
           }),
         )

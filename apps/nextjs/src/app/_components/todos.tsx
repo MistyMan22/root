@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   useMutation,
   useQueryClient,
@@ -15,55 +16,155 @@ import { Checkbox } from "@acme/ui/checkbox";
 import { Input } from "@acme/ui/input";
 import { toast } from "@acme/ui/toast";
 
+import type { Session } from "./session-form";
 import { useTRPC } from "~/trpc/react";
+import { AllTasksView } from "./all-tasks-view";
 import { BaseModal } from "./base-modal";
+import { CalendarView } from "./calendar-view";
+import { SessionsList } from "./sessions-list";
+import { Tabs } from "./tabs";
+import { TodayView } from "./today-view";
 
 function TodoForm(props: {
-  initial?: { title: string };
-  onSubmit: (values: { title: string }) => void;
+  initial?: { title: string; description?: string; sessions?: Session[] };
+  onSubmit: (values: {
+    title: string;
+    description?: string;
+    sessions?: Session[];
+  }) => void;
   submitLabel?: string;
   pending?: boolean;
+  initialFocusRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const {
-    initial = { title: "", priority: "medium" },
+    initial = { title: "", description: "", sessions: [] },
     onSubmit,
     submitLabel = "Save",
     pending,
+    initialFocusRef,
   } = props;
   const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description ?? "");
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    // If no sessions provided, create a default session for today
+    if (!initial.sessions || initial.sessions.length === 0) {
+      const today = new Date();
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      return [
+        {
+          startTimeDate: todayString,
+          time: null,
+          duration: null,
+          status: "planned",
+          notes: "",
+        },
+      ];
+    }
+    return initial.sessions;
+  });
+
+  // Focus the input when component mounts
+  useEffect(() => {
+    const focusInput = () => {
+      if (initialFocusRef?.current) {
+        initialFocusRef.current.focus();
+      }
+    };
+
+    // Small delay to ensure the input is rendered
+    const timeoutId = setTimeout(focusInput, 100);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAddSession = (session: Session) => {
+    setSessions((prev) => [...prev, session]);
+  };
+
+  const handleUpdateSession = (index: number, session: Session) => {
+    setSessions((prev) => prev.map((s, i) => (i === index ? session : s)));
+  };
+
+  const handleDeleteSession = (index: number) => {
+    setSessions((prev) => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <form
-      className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({ title });
+        onSubmit({ title, description, sessions });
       }}
+      className="space-y-4"
     >
-      <div className="space-y-1">
-        <label htmlFor="todo-title" className="block text-xs font-medium">
-          Title
-        </label>
-        <Input
-          id="todo-title"
-          name="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="What needs to be done?"
-          required
-        />
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <label htmlFor="todo-title" className="block text-xs font-medium">
+            Title
+          </label>
+          <Input
+            ref={initialFocusRef}
+            id="todo-title"
+            name="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What needs to be done?"
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor="todo-description"
+            className="block text-xs font-medium"
+          >
+            Description
+          </label>
+          <textarea
+            id="todo-description"
+            name="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add details, notes, or context..."
+            rows={4}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
+
+        {/* Sessions Section */}
+        <div className="border-t pt-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium text-gray-900">
+              Sessions ({sessions.length})
+            </h3>
+          </div>
+
+          <SessionsList
+            sessions={sessions}
+            onUpdateSession={handleUpdateSession}
+            onDeleteSession={handleDeleteSession}
+            onAddSession={handleAddSession}
+            pending={pending}
+          />
+        </div>
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving..." : submitLabel}
-      </Button>
+
+      {/* Update Button at Bottom */}
+      <div className="border-t pt-4">
+        <Button type="submit" disabled={pending} className="w-full">
+          {pending ? "Saving..." : submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }
 
 export function CreateTodoForm() {
   const trpc = useTRPC();
-
   const queryClient = useQueryClient();
+  const initialFocusRef = useRef<HTMLInputElement | null>(null);
 
   const createTodo = useMutation(
     trpc.todo.create.mutationOptions({
@@ -82,9 +183,11 @@ export function CreateTodoForm() {
 
   return (
     <TodoForm
+      initial={{ title: "", description: "", sessions: [] }}
       onSubmit={(values) => createTodo.mutate(values)}
       submitLabel="Add Task"
       pending={createTodo.isPending}
+      initialFocusRef={initialFocusRef}
     />
   );
 }
@@ -118,27 +221,40 @@ export function TodoList() {
   const trpc = useTRPC();
   const { data: todos } = useSuspenseQuery(trpc.todo.all.queryOptions());
 
-  if (todos.length === 0) {
-    return <div className="text-muted-foreground text-sm">No tasks yet.</div>;
-  }
+  const tabs = [
+    {
+      id: "today",
+      label: "Today",
+      content: <TodayView todos={todos} />,
+    },
+    {
+      id: "calendar",
+      label: "Calendar",
+      content: <CalendarView todos={todos} />,
+    },
+    {
+      id: "all",
+      label: "All Tasks",
+      content: <AllTasksView todos={todos} />,
+    },
+  ];
 
   return (
-    <div className="flex w-full flex-col">
-      {todos.map((todo) => {
-        return <TodoCard key={todo.id} todo={todo} />;
-      })}
+    <div className="w-full">
+      <Tabs tabs={tabs} defaultTab="today" />
     </div>
   );
 }
 
 type Todo = RouterOutputs["todo"]["all"][number];
 
-export function TodoCard(props: { todo: Todo }) {
+export function TodoCard(props: { todo: Todo; showSessions?: boolean }) {
   console.log("🔍 Todo card props:", props);
+  const router = useRouter();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const initialFocusRef = useRef<HTMLButtonElement | null>(null);
+  const initialFocusRef = useRef<HTMLInputElement | null>(null);
 
   const updateTodo = useMutation(
     trpc.todo.update.mutationOptions({
@@ -177,6 +293,101 @@ export function TodoCard(props: { todo: Todo }) {
     });
   };
 
+  const formatSessionSummary = (sessions: Session[]) => {
+    if (sessions.length === 0) return null;
+
+    const today = new Date();
+    const todayString = today.toISOString().split("T")[0];
+
+    // Group sessions by date
+    const sessionsByDate = new Map<string, Session[]>();
+    sessions.forEach((session) => {
+      if (!session.startTimeDate) return;
+      const sessionDate = new Date(session.startTimeDate)
+        .toISOString()
+        .split("T")[0];
+      if (sessionDate) {
+        if (!sessionsByDate.has(sessionDate)) {
+          sessionsByDate.set(sessionDate, []);
+        }
+        const dateSessions = sessionsByDate.get(sessionDate);
+        if (dateSessions) {
+          dateSessions.push(session);
+        }
+      }
+    });
+
+    // Sort dates
+    const sortedDates = Array.from(sessionsByDate.keys()).sort();
+
+    const formatDate = (dateString: string) => {
+      if (dateString === todayString) return "Today";
+      const date = new Date(dateString);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (dateString === tomorrow.toISOString().split("T")[0])
+        return "Tomorrow";
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    };
+
+    const getStatusColor = (status: Session["status"]) => {
+      switch (status) {
+        case "completed":
+          return "text-green-600";
+        case "planned":
+          return "text-blue-600";
+        case "skipped":
+          return "text-gray-500";
+        default:
+          return "text-gray-500";
+      }
+    };
+
+    return (
+      <div className="mt-2 space-y-1">
+        {sortedDates.slice(0, 3).map((dateString) => {
+          const dateSessions = sessionsByDate.get(dateString) ?? [];
+          const statusCounts = dateSessions.reduce(
+            (acc, session) => {
+              acc[session.status] = (acc[session.status] ?? 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
+
+          return (
+            <div key={dateString} className="flex items-center gap-2 text-xs">
+              <span className="font-medium text-gray-600">
+                {formatDate(dateString)}
+              </span>
+              <div className="flex gap-1">
+                {Object.entries(statusCounts).map(([status, count]) => (
+                  <span
+                    key={status}
+                    className={cn(
+                      "font-medium",
+                      getStatusColor(status as Session["status"]),
+                    )}
+                  >
+                    {count} {status}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {sortedDates.length > 3 && (
+          <div className="text-xs text-gray-500">
+            +{sortedDates.length - 3} more dates
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -191,16 +402,19 @@ export function TodoCard(props: { todo: Todo }) {
           disabled={updateTodo.isPending}
         />
         <div className="flex-1">
-          <h2
+          <button
+            onClick={() => router.push(`/task/${props.todo.id}`)}
             className={cn(
-              "text-base font-medium",
+              "text-left text-base font-medium hover:text-blue-600 hover:underline",
               props.todo.data.completed === true && "line-through",
             )}
           >
             {typeof props.todo.data.title === "string"
               ? props.todo.data.title
               : "Untitled"}
-          </h2>
+          </button>
+          {props.showSessions &&
+            formatSessionSummary(props.todo.data.sessions ?? [])}
         </div>
       </div>
       <div className="ml-4 flex items-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
@@ -230,9 +444,15 @@ export function TodoCard(props: { todo: Todo }) {
               typeof props.todo.data.title === "string"
                 ? props.todo.data.title
                 : "",
+            description:
+              typeof props.todo.data.description === "string"
+                ? props.todo.data.description
+                : "",
+            sessions: props.todo.data.sessions ?? [],
           }}
           submitLabel="Update"
           pending={updateTodo.isPending}
+          initialFocusRef={initialFocusRef}
           onSubmit={(values) =>
             updateTodo.mutate(
               { id: props.todo.id, ...values },

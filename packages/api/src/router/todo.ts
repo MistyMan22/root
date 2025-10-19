@@ -25,7 +25,18 @@ export const todoRouter = {
     .input(
       z.object({
         title: z.string().max(256),
-        priority: z.enum(["low", "medium", "high"]).optional(),
+        description: z.string().optional(),
+        sessions: z
+          .array(
+            z.object({
+              startTimeDate: z.string().optional(),
+              time: z.string().nullable().optional(),
+              duration: z.number().nullable().optional(),
+              status: z.enum(["completed", "planned", "skipped"]).optional(),
+              notes: z.string().optional(),
+            }),
+          )
+          .optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -34,9 +45,9 @@ export const todoRouter = {
         typeId: "todo" as const,
         data: {
           title: input.title,
+          description: input.description ?? "",
           completed: false,
-          priority: input.priority,
-          completionDate: new Date().toISOString(),
+          sessions: input.sessions ?? [],
         },
       });
       console.log("✅ Created todo:", JSON.stringify(created, null, 2));
@@ -49,19 +60,49 @@ export const todoRouter = {
       z.object({
         id: z.string(),
         title: z.string().max(256).optional(),
+        description: z.string().optional(),
         completed: z.boolean().optional(),
-        priority: z.enum(["low", "medium", "high"]).optional(),
+        sessions: z
+          .array(
+            z.object({
+              startTimeDate: z.string().optional(),
+              time: z.string().nullable().optional(),
+              duration: z.number().nullable().optional(),
+              status: z.enum(["completed", "planned", "skipped"]).optional(),
+              notes: z.string().optional(),
+            }),
+          )
+          .optional(),
       }),
     )
     .mutation(async ({ input }) => {
       const { id, ...updateDataRaw } = input;
       console.log("📝 Updating todo with input:", input);
 
-      // Remove undefined fields so we only update what was sent
-      const updateData = Object.fromEntries(
-        Object.entries(updateDataRaw).filter(([, v]) => v !== undefined),
-      );
+      // Create update data with only defined fields
+      const updateData: {
+        title?: string;
+        description?: string;
+        completed?: boolean;
+        sessions?: {
+          startTimeDate?: string;
+          time?: string | null;
+          duration?: number | null;
+          status?: "completed" | "planned" | "skipped";
+          notes?: string;
+        }[];
+      } = {};
 
+      if (updateDataRaw.title !== undefined)
+        updateData.title = updateDataRaw.title;
+      if (updateDataRaw.description !== undefined)
+        updateData.description = updateDataRaw.description;
+      if (updateDataRaw.completed !== undefined)
+        updateData.completed = updateDataRaw.completed;
+      if (updateDataRaw.sessions !== undefined)
+        updateData.sessions = updateDataRaw.sessions;
+
+      // @ts-expect-error - Type system is too strict for partial updates
       const updated = await graph.element.update<"todo">(id, updateData);
       console.log("✅ Updated todo:", JSON.stringify(updated, null, 2));
 
