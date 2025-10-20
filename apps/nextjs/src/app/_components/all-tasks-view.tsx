@@ -1,16 +1,19 @@
 "use client";
 
-import type { RouterOutputs } from "@acme/api";
+import { useSearchParams } from "next/navigation";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
+import { useTRPC } from "~/trpc/react";
 import { TodoCard } from "./todos";
 
-type Todo = RouterOutputs["todo"]["all"][number];
+export function AllTasksView() {
+  const searchParams = useSearchParams();
+  const trpc = useTRPC();
 
-interface AllTasksViewProps {
-  todos: Todo[];
-}
-
-export function AllTasksView({ todos }: AllTasksViewProps) {
+  const listId = searchParams.get("list") ?? undefined;
+  const { data: todos } = useSuspenseQuery(
+    trpc.todo.all.queryOptions(listId ? { listId } : undefined),
+  );
   if (todos.length === 0) {
     return (
       <div className="py-8 text-center">

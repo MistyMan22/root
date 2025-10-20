@@ -1,16 +1,19 @@
 "use client";
 
-import type { RouterOutputs } from "@acme/api";
+import { useSearchParams } from "next/navigation";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
+import { useTRPC } from "~/trpc/react";
 import { TodoCard } from "./todos";
 
-type Todo = RouterOutputs["todo"]["all"][number];
+export function TodayView() {
+  const searchParams = useSearchParams();
+  const trpc = useTRPC();
 
-interface TodayViewProps {
-  todos: Todo[];
-}
-
-export function TodayView({ todos }: TodayViewProps) {
+  const listId = searchParams.get("list") ?? undefined;
+  const { data: todos } = useSuspenseQuery(
+    trpc.todo.all.queryOptions(listId ? { listId } : undefined),
+  );
   const today = new Date();
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 

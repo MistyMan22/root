@@ -1,26 +1,41 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 
 import type { RouterOutputs } from "@acme/api";
 import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
+import { toast } from "@acme/ui/toast";
 
+import type { CreatableSelectOption } from "./creatable-select";
+import { useTRPC } from "~/trpc/react";
 import { BaseModal } from "./base-modal";
-import { CreateTodoForm, TodoCard } from "./todos";
+import { CreatableSelect } from "./creatable-select";
+
+// Interface for task list data
+interface TaskList {
+  id: string;
+  data: {
+    name: string;
+    description: string;
+  };
+}
+
+// import { CreateTodoForm, TodoCard } from "./todos";
 
 type Todo = RouterOutputs["todo"]["all"][number];
-type Session = {
+interface Session {
   startTimeDate?: string;
   time?: string | null;
   duration?: number | null;
   status: "completed" | "planned" | "skipped";
   notes: string;
-};
-
-interface CalendarViewProps {
-  todos: Todo[];
 }
 
 interface TaskWithSession {
@@ -73,21 +88,27 @@ function CalendarTodoCard({ todo, session }: { todo: Todo; session: Session }) {
             {typeof todo.data.title === "string" ? todo.data.title : "Untitled"}
           </h4>
           <p className="mt-1 text-sm text-gray-600">
-            {session.notes || "No notes"}
+            {session.notes && (
+              <>
+                {session.notes}
+                {(session.time ?? session.duration) && (
+                  <span className="ml-2 font-medium">•</span>
+                )}
+              </>
+            )}
             {session.time && session.duration && (
               <span className="ml-2 font-medium">
-                • {formatTime(session.time)} -{" "}
+                {formatTime(session.time)} -{" "}
                 {calculateEndTime(session.time, session.duration)}
               </span>
             )}
             {session.time && !session.duration && (
               <span className="ml-2 font-medium">
-                • {formatTime(session.time)}
+                {formatTime(session.time)}
               </span>
             )}
             {!session.time && session.duration && (
               <span className="ml-2 font-medium">
-                •{" "}
                 {session.duration < 60
                   ? `${session.duration}m`
                   : `${Math.floor(session.duration / 60)}h ${session.duration % 60}m`}
@@ -110,126 +131,241 @@ function CalendarTodoCard({ todo, session }: { todo: Todo; session: Session }) {
   );
 }
 
-// Add Task button component that pre-populates with a specific date
-function AddTaskButton({ dateString }: { dateString: string }) {
-  const [open, setOpen] = useState(false);
-  const initialFocusRef = useRef<HTMLButtonElement | null>(null);
+// Custom form component for calendar view that handles submission and closes modal
+function CalendarTaskForm({
+  dateString,
+  onSuccess,
+  initialFocusRef,
+}: {
+  dateString: string;
+  onSuccess: () => void;
+  initialFocusRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [listId, setListId] = useState("");
+  const [time, setTime] = useState("");
+  const [duration, setDuration] = useState<number | null>(null);
+  const [status, setStatus] = useState<"planned" | "completed" | "skipped">(
+    "planned",
+  );
+  const [notes, setNotes] = useState("");
 
-  // Create a pre-populated form with a session on the specific date
-  const prePopulatedForm = () => {
-    const today = new Date();
-    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  // Get task lists for the select
+  const { data: taskLists = [] } = useSuspenseQuery(
+    trpc.taskList.all.queryOptions(),
+  ) as { data: TaskList[] };
 
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label
-            htmlFor="todo-title"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Title
-          </label>
-          <input
-            ref={initialFocusRef}
-            id="todo-title"
-            name="title"
-            placeholder="What needs to be done?"
-            required
-            autoFocus
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
+  // Convert task lists to options format
+  const listOptions: CreatableSelectOption[] = [
+    { value: "__none__", label: "No list" },
+    ...taskLists.map((list: TaskList) => ({
+      value: list.id,
+      label: list.data.name || "Unnamed List",
+    })),
+  ];
+
+  const handleCreateNewList = async (name: string) => {
+    try {
+      const newList = (await trpc.taskList.create.mutate({
+        name: name.trim(),
+        description: "",
+      })) as TaskList;
+      setListId(newList.id);
+    } catch (error) {
+      console.error("Failed to create list:", error);
+    }
+  };
+
+  const createTodo = useMutation(
+    trpc.todo.create.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(trpc.todo.pathFilter());
+        onSuccess();
+      },
+      onError: (err) => {
+        toast.error(
+          err.data?.code === "UNAUTHORIZED"
+            ? "You must be logged in to create todos"
+            : "Failed to create todo",
+        );
+      },
+    }),
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const session = {
+      startTimeDate: dateString,
+      time: time ?? null,
+      duration: duration ?? null,
+      status,
+      notes,
+    };
+
+    createTodo.mutate({
+      title,
+      description,
+      sessions: [session],
+      listId: listId === "__none__" ? undefined : listId || undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <label
+          htmlFor="todo-title"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Title
+        </label>
+        <input
+          ref={initialFocusRef}
+          id="todo-title"
+          name="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs to be done?"
+          required
+          autoFocus
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-base placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label
+          htmlFor="todo-description"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Description
+        </label>
+        <textarea
+          id="todo-description"
+          name="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Add details, notes, or context..."
+          rows={4}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-base placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <CreatableSelect
+          value={listId}
+          onChange={(value) =>
+            setListId(value === "__none__" ? "" : (value ?? ""))
+          }
+          options={listOptions}
+          onCreateNew={handleCreateNewList}
+          placeholder="Select a list..."
+          label="List"
+        />
+      </div>
+
+      <div className="border-t pt-4">
+        <div className="mb-3">
+          <h3 className="text-base font-medium text-gray-900">Sessions (1)</h3>
         </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="todo-description"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Description
-          </label>
-          <textarea
-            id="todo-description"
-            name="description"
-            placeholder="Add details, notes, or context..."
-            rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        <div className="border-t pt-4">
-          <div className="mb-3">
-            <h3 className="text-base font-medium text-gray-900">
-              Sessions (1)
-            </h3>
-          </div>
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dateString}
-                    readOnly
-                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">
-                    Duration (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="60"
-                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">
-                    Status
-                  </label>
-                  <select className="w-full rounded border border-gray-300 px-2 py-1 text-sm">
-                    <option value="planned">Planned</option>
-                    <option value="completed">Completed</option>
-                    <option value="skipped">Skipped</option>
-                  </select>
-                </div>
+        <div className="rounded-lg border bg-gray-50 p-3">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={dateString}
+                  readOnly
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700">
-                  Notes
+                  Time
                 </label>
-                <textarea
-                  placeholder="Add session notes..."
-                  rows={2}
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
                   className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700">
+                  Duration (minutes)
+                </label>
+                <input
+                  type="number"
+                  value={duration ?? ""}
+                  onChange={(e) =>
+                    setDuration(
+                      e.target.value ? parseInt(e.target.value) : null,
+                    )
+                  }
+                  placeholder="60"
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700">
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(
+                      e.target.value as "planned" | "completed" | "skipped",
+                    )
+                  }
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                >
+                  <option value="planned">Planned</option>
+                  <option value="completed">Completed</option>
+                  <option value="skipped">Skipped</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700">
+                Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add session notes..."
+                rows={2}
+                className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              />
+            </div>
           </div>
         </div>
-
-        <div className="border-t pt-4">
-          <Button type="submit" className="w-full py-3 text-base">
-            Add Task
-          </Button>
-        </div>
       </div>
-    );
-  };
+
+      <div className="border-t pt-4">
+        <Button
+          type="submit"
+          className="w-full py-3 text-base"
+          disabled={createTodo.isPending}
+        >
+          {createTodo.isPending ? "Adding..." : "Add Task"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Add Task button component that pre-populates with a specific date
+function AddTaskButton({ dateString }: { dateString: string }) {
+  const [open, setOpen] = useState(false);
+  const initialFocusRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
@@ -247,14 +383,25 @@ function AddTaskButton({ dateString }: { dateString: string }) {
         title="Add Task"
         initialFocusRef={initialFocusRef as React.RefObject<HTMLElement>}
       >
-        {prePopulatedForm()}
+        <CalendarTaskForm
+          dateString={dateString}
+          onSuccess={() => setOpen(false)}
+          initialFocusRef={initialFocusRef}
+        />
       </BaseModal>
     </>
   );
 }
 
-export function CalendarView({ todos }: CalendarViewProps) {
-  const router = useRouter();
+export function CalendarView() {
+  const searchParams = useSearchParams();
+  const trpc = useTRPC();
+  // const router = useRouter();
+
+  const listId = searchParams.get("list") ?? undefined;
+  const { data: todos } = useSuspenseQuery(
+    trpc.todo.all.queryOptions(listId ? { listId } : undefined),
+  );
   const today = new Date();
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
@@ -262,13 +409,15 @@ export function CalendarView({ todos }: CalendarViewProps) {
   const tasksByDate = new Map<string, TaskWithSession[]>();
 
   todos.forEach((todo) => {
-    const sessions = todo.data.sessions || [];
+    const sessions = todo.data.sessions ?? [];
 
     sessions.forEach((session) => {
       if (!session.startTimeDate) return;
 
       const sessionDate = session.startTimeDate;
       const [year, month, day] = sessionDate.split("-");
+      if (!year || !month || !day) return;
+
       const sessionDateObj = new Date(
         parseInt(year),
         parseInt(month) - 1,
@@ -292,16 +441,26 @@ export function CalendarView({ todos }: CalendarViewProps) {
     });
   });
 
+  // Always include today and tomorrow, even if no tasks exist
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowString = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
+  // Ensure today and tomorrow are always in the map
+  if (!tasksByDate.has(todayString)) {
+    tasksByDate.set(todayString, []);
+  }
+  if (!tasksByDate.has(tomorrowString)) {
+    tasksByDate.set(tomorrowString, []);
+  }
+
   // Sort dates
   const sortedDates = Array.from(tasksByDate.keys()).sort();
 
   const formatDate = (dateString: string) => {
     const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return dateString;
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowString = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 
     if (dateString === todayString) {
       return "Today";
@@ -327,7 +486,7 @@ export function CalendarView({ todos }: CalendarViewProps) {
   return (
     <div className="space-y-6">
       {sortedDates.map((dateString) => {
-        const tasks = tasksByDate.get(dateString) || [];
+        const tasks = tasksByDate.get(dateString) ?? [];
 
         return (
           <div key={dateString} className="space-y-3">

@@ -16,28 +16,41 @@ import { Checkbox } from "@acme/ui/checkbox";
 import { Input } from "@acme/ui/input";
 import { toast } from "@acme/ui/toast";
 
+import type { CreatableSelectOption } from "./creatable-select";
 import type { Session } from "./session-form";
 import { useTRPC } from "~/trpc/react";
-import { AllTasksView } from "./all-tasks-view";
 import { BaseModal } from "./base-modal";
-import { CalendarView } from "./calendar-view";
+import { CreatableSelect } from "./creatable-select";
 import { SessionsList } from "./sessions-list";
-import { Tabs } from "./tabs";
-import { TodayView } from "./today-view";
+
+// Interface for task list data
+interface TaskList {
+  id: string;
+  data: {
+    name: string;
+    description: string;
+  };
+}
 
 function TodoForm(props: {
-  initial?: { title: string; description?: string; sessions?: Session[] };
+  initial?: {
+    title: string;
+    description?: string;
+    sessions?: Session[];
+    listId?: string;
+  };
   onSubmit: (values: {
     title: string;
     description?: string;
     sessions?: Session[];
+    listId?: string;
   }) => void;
   submitLabel?: string;
   pending?: boolean;
   initialFocusRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const {
-    initial = { title: "", description: "", sessions: [] },
+    initial = { title: "", description: "", sessions: [], listId: "" },
     onSubmit,
     submitLabel = "Save",
     pending,
@@ -45,6 +58,7 @@ function TodoForm(props: {
   } = props;
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description ?? "");
+  const [listId, setListId] = useState(initial.listId ?? "");
   const [sessions, setSessions] = useState<Session[]>(() => {
     // If no sessions provided, create a default session for today
     if (!initial.sessions || initial.sessions.length === 0) {
@@ -62,6 +76,30 @@ function TodoForm(props: {
     }
     return initial.sessions;
   });
+
+  // Get task lists for the select
+  const trpc = useTRPC();
+  const { data: taskLists = [] } = useSuspenseQuery(
+    trpc.taskList.all.queryOptions(),
+  ) as { data: TaskList[] };
+
+  // Convert task lists to options format
+  const listOptions: CreatableSelectOption[] = [
+    { value: "__none__", label: "No list" },
+    ...taskLists.map((list: TaskList) => ({
+      value: list.id,
+      label: list.data.name || "Unnamed List",
+    })),
+  ];
+
+  const handleCreateNewList = async (name: string) => {
+    const newList = (await trpc.taskList.create.mutate({
+      name: name.trim(),
+      description: "",
+    })) as TaskList;
+    setListId(newList.id);
+    return newList.id;
+  };
 
   // Focus the input when component mounts
   useEffect(() => {
@@ -94,7 +132,12 @@ function TodoForm(props: {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({ title, description, sessions });
+        onSubmit({
+          title,
+          description,
+          sessions,
+          listId: listId === "__none__" ? undefined : listId || undefined,
+        });
       }}
       className="space-y-4"
     >
@@ -137,6 +180,19 @@ function TodoForm(props: {
           />
         </div>
 
+        <div className="space-y-2">
+          <CreatableSelect
+            value={listId}
+            onChange={(value) =>
+              setListId(value === "__none__" ? "" : (value ?? ""))
+            }
+            options={listOptions}
+            onCreateNew={handleCreateNewList}
+            placeholder="Select a list..."
+            label="List"
+          />
+        </div>
+
         {/* Sessions Section */}
         <div className="border-t pt-4">
           <div className="mb-3">
@@ -169,7 +225,7 @@ function TodoForm(props: {
   );
 }
 
-export function CreateTodoForm() {
+export function CreateTodoForm({ onSuccess }: { onSuccess?: () => void }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const initialFocusRef = useRef<HTMLInputElement | null>(null);
@@ -178,6 +234,7 @@ export function CreateTodoForm() {
     trpc.todo.create.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries(trpc.todo.pathFilter());
+        onSuccess?.();
       },
       onError: (err) => {
         toast.error(
@@ -219,37 +276,8 @@ export function AddTodoButton() {
         title="Add Task"
         initialFocusRef={initialFocusRef as React.RefObject<HTMLElement>}
       >
-        <CreateTodoForm />
+        <CreateTodoForm onSuccess={() => setOpen(false)} />
       </BaseModal>
-    </div>
-  );
-}
-
-export function TodoList() {
-  const trpc = useTRPC();
-  const { data: todos } = useSuspenseQuery(trpc.todo.all.queryOptions());
-
-  const tabs = [
-    {
-      id: "today",
-      label: "Today",
-      content: <TodayView todos={todos} />,
-    },
-    {
-      id: "calendar",
-      label: "Calendar",
-      content: <CalendarView todos={todos} />,
-    },
-    {
-      id: "all",
-      label: "All Tasks",
-      content: <AllTasksView todos={todos} />,
-    },
-  ];
-
-  return (
-    <div className="w-full">
-      <Tabs tabs={tabs} defaultTab="today" />
     </div>
   );
 }
@@ -305,15 +333,13 @@ export function TodoCard(props: { todo: Todo; showSessions?: boolean }) {
     if (sessions.length === 0) return null;
 
     const today = new Date();
-    const todayString = today.toISOString().split("T")[0];
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
     // Group sessions by date
     const sessionsByDate = new Map<string, Session[]>();
     sessions.forEach((session) => {
       if (!session.startTimeDate) return;
-      const sessionDate = new Date(session.startTimeDate)
-        .toISOString()
-        .split("T")[0];
+      const sessionDate = session.startTimeDate;
       if (sessionDate) {
         if (!sessionsByDate.has(sessionDate)) {
           sessionsByDate.set(sessionDate, []);
@@ -333,8 +359,8 @@ export function TodoCard(props: { todo: Todo; showSessions?: boolean }) {
       const date = new Date(dateString);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      if (dateString === tomorrow.toISOString().split("T")[0])
-        return "Tomorrow";
+      const tomorrowString = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+      if (dateString === tomorrowString) return "Tomorrow";
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

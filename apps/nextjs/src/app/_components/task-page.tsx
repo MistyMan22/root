@@ -14,10 +14,21 @@ import { Button } from "@acme/ui/button";
 import { Checkbox } from "@acme/ui/checkbox";
 import { toast } from "@acme/ui/toast";
 
+import type { CreatableSelectOption } from "./creatable-select";
 import type { Session } from "./session-form";
 import { useTRPC } from "~/trpc/react";
 import { BaseModal } from "./base-modal";
+import { CreatableSelect } from "./creatable-select";
 import { SessionsList } from "./sessions-list";
+
+// Interface for task list data
+interface TaskList {
+  id: string;
+  data: {
+    name: string;
+    description: string;
+  };
+}
 
 type Todo = RouterOutputs["todo"]["byId"];
 
@@ -52,18 +63,24 @@ function MarkdownRenderer({ content }: { content: string }) {
 }
 
 function TodoForm(props: {
-  initial?: { title: string; description?: string; sessions?: Session[] };
+  initial?: {
+    title: string;
+    description?: string;
+    sessions?: Session[];
+    listId?: string;
+  };
   onSubmit: (values: {
     title: string;
     description?: string;
     sessions?: Session[];
+    listId?: string;
   }) => void;
   submitLabel?: string;
   pending?: boolean;
   initialFocusRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const {
-    initial = { title: "", description: "", sessions: [] },
+    initial = { title: "", description: "", sessions: [], listId: "" },
     onSubmit,
     submitLabel = "Save",
     pending,
@@ -71,6 +88,7 @@ function TodoForm(props: {
   } = props;
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description ?? "");
+  const [listId, setListId] = useState(initial.listId ?? "");
   const [sessions, setSessions] = useState<Session[]>(() => {
     // If no sessions provided, create a default session for today
     if (!initial.sessions || initial.sessions.length === 0) {
@@ -88,6 +106,30 @@ function TodoForm(props: {
     }
     return initial.sessions;
   });
+
+  // Get task lists for the select
+  const trpc = useTRPC();
+  const { data: taskLists = [] } = useSuspenseQuery(
+    trpc.taskList.all.queryOptions(),
+  ) as { data: TaskList[] };
+
+  // Convert task lists to options format
+  const listOptions: CreatableSelectOption[] = [
+    { value: "__none__", label: "No list" },
+    ...taskLists.map((list: TaskList) => ({
+      value: list.id,
+      label: list.data.name || "Unnamed List",
+    })),
+  ];
+
+  const handleCreateNewList = async (name: string) => {
+    const newList = (await trpc.taskList.create.mutate({
+      name: name.trim(),
+      description: "",
+    })) as TaskList;
+    setListId(newList.id);
+    return newList.id;
+  };
 
   // Focus the input when component mounts
   React.useEffect(() => {
@@ -119,7 +161,12 @@ function TodoForm(props: {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({ title, description, sessions });
+        onSubmit({
+          title,
+          description,
+          sessions,
+          listId: listId === "__none__" ? undefined : listId || undefined,
+        });
       }}
       className="space-y-4"
     >
@@ -137,7 +184,7 @@ function TodoForm(props: {
             placeholder="What needs to be done?"
             required
             autoFocus
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
@@ -155,7 +202,20 @@ function TodoForm(props: {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add details, notes, or context..."
             rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <CreatableSelect
+            value={listId}
+            onChange={(value) =>
+              setListId(value === "__none__" ? "" : (value ?? ""))
+            }
+            options={listOptions}
+            onCreateNew={handleCreateNewList}
+            placeholder="Select a list..."
+            label="List"
           />
         </div>
 
@@ -343,6 +403,7 @@ export function TaskPage({ todoId }: { todoId: string }) {
                 ? todo.data.description
                 : "",
             sessions: todo.data.sessions ?? [],
+            listId: todo.listId ?? "",
           }}
           submitLabel="Update"
           pending={updateTodo.isPending}
