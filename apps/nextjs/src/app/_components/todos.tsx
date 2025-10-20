@@ -98,9 +98,12 @@ function TodoForm(props: {
       }}
       className="space-y-4"
     >
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <label htmlFor="todo-title" className="block text-xs font-medium">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label
+            htmlFor="todo-title"
+            className="block text-sm font-medium text-gray-700"
+          >
             Title
           </label>
           <Input
@@ -112,13 +115,14 @@ function TodoForm(props: {
             placeholder="What needs to be done?"
             required
             autoFocus
+            className="text-base" // Prevent zoom on iOS
           />
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label
             htmlFor="todo-description"
-            className="block text-xs font-medium"
+            className="block text-sm font-medium text-gray-700"
           >
             Description
           </label>
@@ -129,14 +133,14 @@ function TodoForm(props: {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add details, notes, or context..."
             rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
         {/* Sessions Section */}
         <div className="border-t pt-4">
           <div className="mb-3">
-            <h3 className="text-sm font-medium text-gray-900">
+            <h3 className="text-base font-medium text-gray-900">
               Sessions ({sessions.length})
             </h3>
           </div>
@@ -151,9 +155,13 @@ function TodoForm(props: {
         </div>
       </div>
 
-      {/* Update Button at Bottom */}
+      {/* Button at bottom */}
       <div className="border-t pt-4">
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button
+          type="submit"
+          disabled={pending}
+          className="w-full py-3 text-base"
+        >
           {pending ? "Saving..." : submitLabel}
         </Button>
       </div>
@@ -405,7 +413,7 @@ export function TodoCard(props: { todo: Todo; showSessions?: boolean }) {
           <button
             onClick={() => router.push(`/task/${props.todo.id}`)}
             className={cn(
-              "text-left text-base font-medium hover:text-blue-600 hover:underline",
+              "cursor-pointer text-left text-base font-medium hover:text-blue-600 hover:underline",
               props.todo.data.completed === true && "line-through",
             )}
           >
@@ -419,13 +427,13 @@ export function TodoCard(props: { todo: Todo; showSessions?: boolean }) {
       </div>
       <div className="ml-4 flex items-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
         <button
-          className="text-xs underline"
+          className="cursor-pointer text-xs underline"
           onClick={() => setIsEditing(true)}
         >
           Edit
         </button>
         <button
-          className="text-xs text-red-600 underline"
+          className="cursor-pointer text-xs text-red-600 underline disabled:cursor-not-allowed"
           onClick={() => deleteTodo.mutate(props.todo.id)}
           disabled={deleteTodo.isPending}
         >

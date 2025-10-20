@@ -37,14 +37,23 @@ export function BaseModal(props: BaseModalProps) {
   const previouslyFocusedElementRef = useRef<Element | null>(null);
   const titleId = useId();
 
-  // Lock body scroll while open
+  // Lock body scroll while open and prevent horizontal scroll
   useEffect(() => {
     if (!open) return;
     const { style } = document.body;
     const previousOverflow = style.overflow;
+    const previousOverflowX = style.overflowX;
+    const previousOverflowY = style.overflowY;
+
+    // Prevent all scrolling
     style.overflow = "hidden";
+    style.overflowX = "hidden";
+    style.overflowY = "hidden";
+
     return () => {
       style.overflow = previousOverflow;
+      style.overflowX = previousOverflowX;
+      style.overflowY = previousOverflowY;
     };
   }, [open]);
 
@@ -105,7 +114,7 @@ export function BaseModal(props: BaseModalProps) {
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onMouseDown={(e) => {
         if (!closeOnBackdrop) return;
         if (e.target === overlayRef.current) onClose();
@@ -118,7 +127,11 @@ export function BaseModal(props: BaseModalProps) {
         aria-labelledby={title ? titleId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         className={cn(
-          "w-full max-w-sm rounded-md bg-white p-4 shadow-lg outline-none",
+          "flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl outline-none",
+          "transform transition-all duration-300 ease-out",
+          !!open
+            ? "translate-y-0 scale-100 opacity-100"
+            : "translate-y-4 scale-95 opacity-0",
           className,
         )}
         onMouseDown={(e) => {
@@ -126,10 +139,11 @@ export function BaseModal(props: BaseModalProps) {
           e.stopPropagation();
         }}
       >
-        {(!!title || !hideCloseButton) && (
-          <div className="mb-3 flex items-center justify-between">
+        {/* Header */}
+        {(title ?? !hideCloseButton) && (
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
             {title ? (
-              <h2 id={titleId} className="text-sm font-semibold tracking-tight">
+              <h2 id={titleId} className="text-lg font-semibold tracking-tight">
                 {title}
               </h2>
             ) : (
@@ -137,16 +151,18 @@ export function BaseModal(props: BaseModalProps) {
             )}
             {!hideCloseButton && (
               <button
-                className="text-xs underline"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
                 onClick={onClose}
                 aria-label="Close"
               >
-                Close
+                Done
               </button>
             )}
           </div>
         )}
-        {children}
+
+        {/* Content - scrollable when needed */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
       </div>
     </div>,
     document.body,

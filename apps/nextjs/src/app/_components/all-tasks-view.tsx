@@ -19,9 +19,21 @@ export function AllTasksView({ todos }: AllTasksViewProps) {
     );
   }
 
+  // Sort todos: incomplete first, then completed
+  const sortedTodos = [...todos].sort((a, b) => {
+    const aCompleted = a.data.completed === true;
+    const bCompleted = b.data.completed === true;
+
+    // If both have same completion status, maintain original order
+    if (aCompleted === bCompleted) return 0;
+
+    // Incomplete tasks come first
+    return aCompleted ? 1 : -1;
+  });
+
   return (
     <div className="space-y-2">
-      {todos.map((todo) => (
+      {sortedTodos.map((todo) => (
         <TodoCard key={todo.id} todo={todo} showSessions={true} />
       ))}
     </div>

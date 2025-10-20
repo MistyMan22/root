@@ -25,7 +25,19 @@ export function TodayView({ todos }: TodayViewProps) {
     });
   });
 
-  if (todayTodos.length === 0) {
+  // Sort todos: incomplete first, then completed
+  const sortedTodayTodos = [...todayTodos].sort((a, b) => {
+    const aCompleted = a.data.completed === true;
+    const bCompleted = b.data.completed === true;
+
+    // If both have same completion status, maintain original order
+    if (aCompleted === bCompleted) return 0;
+
+    // Incomplete tasks come first
+    return aCompleted ? 1 : -1;
+  });
+
+  if (sortedTodayTodos.length === 0) {
     return (
       <div className="py-8 text-center">
         <p className="text-gray-500">No tasks for today</p>
@@ -35,7 +47,7 @@ export function TodayView({ todos }: TodayViewProps) {
 
   return (
     <div className="space-y-2">
-      {todayTodos.map((todo) => (
+      {sortedTodayTodos.map((todo) => (
         <TodoCard key={todo.id} todo={todo} />
       ))}
     </div>
