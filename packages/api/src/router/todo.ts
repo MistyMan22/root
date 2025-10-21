@@ -6,11 +6,39 @@ import { graph } from "@acme/db/graph";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const todoRouter = {
-  all: publicProcedure.query(async () => {
-    const todos = await graph.element.findByType("todo");
-    console.log("🔍 Raw todos from graph DB:", JSON.stringify(todos, null, 2));
-    return todos;
-  }),
+  all: publicProcedure
+    .input(z.object({ listId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      if (input?.listId) {
+        // Filter todos by list
+        const links = await graph.link.findTo(input.listId, "taskToList");
+        const todoIds = links.map((link) => link.fromId);
+
+        // Fetch todos by IDs
+        const todos = await Promise.all(
+          todoIds.map((id) => graph.element.get(id)),
+        );
+
+        const validTodos = todos.filter(
+          (todo): todo is NonNullable<typeof todo> =>
+            todo !== null && todo.typeId === "todo",
+        );
+
+        console.log(
+          "🔍 Filtered todos from list:",
+          JSON.stringify(validTodos, null, 2),
+        );
+        return validTodos;
+      } else {
+        // Return all todos
+        const todos = await graph.element.findByType("todo");
+        console.log(
+          "🔍 Raw todos from graph DB:",
+          JSON.stringify(todos, null, 2),
+        );
+        return todos;
+      }
+    }),
 
   byId: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -18,7 +46,14 @@ export const todoRouter = {
       const todo = await graph.element.get<"todo">(input.id);
       if (!todo?.data || typeof todo.data !== "object") return null;
 
-      return todo;
+      // Get associated list ID
+      const listLinks = await graph.link.findFrom(input.id, "taskToList");
+      const listId = listLinks[0]?.toId ?? null;
+
+      return {
+        ...todo,
+        listId,
+      };
     }),
 
   create: protectedProcedure
@@ -37,20 +72,38 @@ export const todoRouter = {
             }),
           )
           .optional(),
+        listId: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
       console.log("📝 Creating todo with input:", input);
+      const { listId, ...todoData } = input;
+
       const created = await graph.element.create({
         typeId: "todo" as const,
         data: {
-          title: input.title,
-          description: input.description ?? "",
+          title: todoData.title,
+          description: todoData.description ?? "",
           completed: false,
-          sessions: input.sessions ?? [],
+          sessions: todoData.sessions ?? [],
         },
       });
       console.log("✅ Created todo:", JSON.stringify(created, null, 2));
+
+      // If listId provided, create taskToList link
+      if (listId) {
+        // Get existing tasks in the list to calculate order
+        const existingLinks = await graph.link.findTo(listId, "taskToList");
+        const order = existingLinks.length;
+
+        await graph.link.create({
+          fromId: created.id,
+          toId: listId,
+          linkTypeId: "taskToList",
+          data: { order },
+        });
+        console.log("✅ Created taskToList link with order:", order);
+      }
 
       return created;
     }),
@@ -73,10 +126,11 @@ export const todoRouter = {
             }),
           )
           .optional(),
+        listId: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { id, ...updateDataRaw } = input;
+      const { id, listId, ...updateDataRaw } = input;
       console.log("📝 Updating todo with input:", input);
 
       // Create update data with only defined fields
@@ -105,6 +159,33 @@ export const todoRouter = {
       // @ts-expect-error - Type system is too strict for partial updates
       const updated = await graph.element.update<"todo">(id, updateData);
       console.log("✅ Updated todo:", JSON.stringify(updated, null, 2));
+
+      // Handle list linking
+      if (listId !== undefined) {
+        // Delete existing taskToList links for this todo
+        const existingLinks = await graph.link.findFrom(id, "taskToList");
+        for (const link of existingLinks) {
+          await graph.link.delete(link.id);
+        }
+
+        // Create new link if listId provided
+        if (listId) {
+          // Get existing tasks in the list to calculate order
+          const existingListLinks = await graph.link.findTo(
+            listId,
+            "taskToList",
+          );
+          const order = existingListLinks.length;
+
+          await graph.link.create({
+            fromId: id,
+            toId: listId,
+            linkTypeId: "taskToList",
+            data: { order },
+          });
+          console.log("✅ Created taskToList link with order:", order);
+        }
+      }
 
       return updated;
     }),
