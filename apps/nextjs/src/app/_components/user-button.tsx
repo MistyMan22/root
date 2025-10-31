@@ -6,3 +6,4 @@ export function UserButton() {
   return <ClerkUserButton afterSignOutUrl="/" />;
 }
 
+

@@ -1,3 +1,12 @@
 ---
 alwaysApply: true
 ---
+
+Coding Standards:
+
+- always use () => {} style functions. If you encounter a function not done in that style, fix it.
+
+Note taking:
+
+- in each component you write or edit, add/update a section of comments BELOW the component called "AGENT NOTES: <component-name>". In this section, write dense, detailed notes about the component: what it does and why, how if necessary, and a short change history. These will help give future editors of the file context.
+- do the same at the bottom of each FILE you update or edit, capturing information about the file itself. Do not duplicate information already included in the component agent notes
