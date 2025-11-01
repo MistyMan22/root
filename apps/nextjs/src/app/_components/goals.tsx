@@ -12,7 +12,6 @@ import type { RouterOutputs } from "@acme/api";
 import { Button } from "@acme/ui/button";
 import { Input } from "@acme/ui/input";
 import { toast } from "@acme/ui/toast";
-import { DateTimePicker } from "@acme/ui";
 
 import { useTRPC } from "~/trpc/react";
 import { BaseModal } from "./base-modal";
@@ -23,12 +22,10 @@ const GoalForm = (props: {
   initial?: {
     name: string;
     description?: string;
-    date?: string;
   };
   onSubmit: (values: {
     name: string;
     description?: string;
-    date?: string;
   }) => void;
   submitLabel?: string;
   pending?: boolean;
@@ -37,7 +34,6 @@ const GoalForm = (props: {
   const { initial, onSubmit, submitLabel = "Add Goal", pending, initialFocusRef } = props;
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [date, setDate] = useState(initial?.date ?? "");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -46,7 +42,6 @@ const GoalForm = (props: {
     onSubmit({
       name: name.trim(),
       description: description.trim() || undefined,
-      date: date || undefined,
     });
   };
 
@@ -70,21 +65,6 @@ const GoalForm = (props: {
             required
             autoFocus
             className="text-base"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="goal-date"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Date
-          </label>
-          <DateTimePicker
-            mode="date"
-            value={date}
-            onChange={setDate}
-            className="w-full"
           />
         </div>
 
@@ -143,7 +123,7 @@ export const CreateGoalForm = ({ onSuccess }: { onSuccess?: () => void }) => {
 
   return (
     <GoalForm
-      initial={{ name: "", description: "", date: "" }}
+      initial={{ name: "", description: "" }}
       onSubmit={(values) => createGoal.mutate(values)}
       submitLabel="Add Goal"
       pending={createGoal.isPending}
@@ -201,20 +181,6 @@ export const GoalsList = () => {
     }),
   );
 
-  const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return "No date";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
-
   if (goals.length === 0) {
     return (
       <div className="text-center py-12">
@@ -226,7 +192,7 @@ export const GoalsList = () => {
   return (
     <div className="space-y-4">
       {goals.map((goal) => {
-        const goalData = goal.data as { title?: string; description?: string; date?: string | null };
+        const goalData = goal.data as { title?: string; description?: string };
         return (
           <div
             key={goal.id}
@@ -240,9 +206,6 @@ export const GoalsList = () => {
                 {goalData.description && (
                   <p className="text-gray-600 mb-2">{goalData.description}</p>
                 )}
-                <p className="text-sm text-gray-500">
-                  {formatDate(goalData.date)}
-                </p>
               </div>
               <Button
                 variant="ghost"

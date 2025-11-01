@@ -16,7 +16,6 @@ export const goalRouter = {
       z.object({
         name: z.string().max(256),
         description: z.string().optional(),
-        date: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -25,7 +24,6 @@ export const goalRouter = {
         data: {
           title: input.name,
           description: input.description ?? "",
-          date: input.date ?? null,
           state: [],
         },
       });
